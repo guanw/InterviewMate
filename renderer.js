@@ -1,4 +1,4 @@
-// // renderer.js
+
 // window.electronAPI.onSpeechRecognized((event, result) => {
 //   console.log('Recognition result:', result);
 //   appendTranscript(result.text);
@@ -23,9 +23,16 @@
 //   transcriptDiv.innerText += text + '\n';
 // }
 
-// // Start recognition when ready
-window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    window.electronAPI.startRecognition();
-  }, 5000);
+// renderer.js
+// Start recognition when ready
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const recognitionResp = await window.electronAPI.startRecognition();
+    console.log(recognitionResp);
+  } catch (error) {
+    console.error('Recognition error:', error);
+  }
+
+  const res = await window.electronAPI.test();
+  console.log(res);
 });

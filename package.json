@@ -1,0 +1,15 @@
+{
+    "name": "lc",
+    "version": "0.0.1",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron ."
+    },
+    "devDependencies": {
+        "electron": "^25.0.0",
+        "express": "^5.1.0"
+    },
+    "dependencies": {
+        "electron-vosk-speech": "^0.2.1"
+    }
+}

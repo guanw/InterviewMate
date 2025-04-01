@@ -1,7 +1,7 @@
-const { app, BrowserWindow, ipcMain, ipcRenderer } = require('electron');
+// main.js
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { VoskConnector } = require('electron-vosk-speech/src/utils');
-const { Recognizer } = require('electron-vosk-speech')
 
 let mainWindow;
 let vosk;
@@ -59,23 +59,16 @@ app.on('activate', () => {
 
 // Handle speech recognition requests
 ipcMain.handle('start-recognition', () => {
-    // Initialize and start your speech recognition here
-    console.log('start-recognition triggered');
-
-    const rec = new Recognizer({
-        ipcRenderer,
-        onSpeechRecognized: res => console.log('recognized! ' + JSON.stringify(res)),
-        onSpeechStart: () => console.log('on speech start!'),
-        onSpeechEnd: () => console.log('on speech end!'),
-        options: {
-            languageCode: 'en',
-        }
-    })
-    rec.startAll();
+    return 'server starting recognition';
 });
+
+ipcMain.handle('client-test', async () => {
+    return "hello this is server";
+});
+
 
 // Example of handling speech recognition events
-ipcMain.on('speech-recognized', (event, result) => {
-    // Handle the recognition result
-    console.log('recognized: ', result);
-});
+// ipcMain.on('speech-recognized', (event, result) => {
+//     // Handle the recognition result
+//     console.log('recognized: ', result);
+// });
