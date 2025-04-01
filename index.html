@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LC</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #status {
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    #transcript {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 100px;
+      white-space: pre-wrap;
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <h1>Electron Vosk Speech Recognition</h1>
+  <div id="status">Initializing...</div>
+  <div id="transcript">Waiting for speech input...</div>
+  <script src="renderer.js"></script>
+</body>
+</html>
