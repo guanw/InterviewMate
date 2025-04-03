@@ -3,7 +3,7 @@ const fs = require('fs');
 const ws = new websocket('ws://localhost:2700');
 
 ws.on('open', function open() {
-  var readStream = fs.createReadStream('test.wav');
+  var readStream = fs.createReadStream('test_16000.wav');
   readStream.on('data', function (chunk) {
       ws.send(chunk);
   });
