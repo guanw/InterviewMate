@@ -10,6 +10,7 @@
         "express": "^5.1.0"
     },
     "dependencies": {
-        "electron-vosk-speech": "^0.2.1"
+        "electron-vosk-speech": "^0.2.1",
+        "whisper-node": "^1.1.1"
     }
 }
