@@ -1,30 +1,120 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>LC</title>
+  <title>Whisper Real-Time Transcription</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+    }
+    .control-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: background-color 0.2s;
+    }
+    #startBtn {
+      background-color: #2ecc71;
+      color: white;
+    }
+    #startBtn:hover {
+      background-color: #27ae60;
+    }
+    #stopBtn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    #stopBtn:hover {
+      background-color: #c0392b;
     }
     #status {
-      margin-bottom: 20px;
+      margin: 15px 0;
+      padding: 10px;
+      border-radius: 4px;
+      background-color: #f8f9fa;
       font-weight: bold;
     }
-    #transcript {
-      border: 1px solid #ccc;
+    #visualizer {
+      width: 100%;
+      height: 200px;
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    #transcriptContainer {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    small {
+      color: #7f8c8d;
+    }
+    .transcript-entry {
+      margin-bottom: 15px;
       padding: 10px;
-      min-height: 100px;
-      white-space: pre-wrap;
-      background-color: #f9f9f9;
+      background: #f8f9fa;
+      border-radius: 5px;
+      border-left: 3px solid #3498db;
+    }
+
+    .transcript-content {
+      margin-top: 5px;
+      line-height: 1.5;
+    }
+
+    .speech-segment {
+      margin-right: 4px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      background-color: #e8f4fc;
+      transition: background-color 0.2s;
+    }
+
+    .speech-segment:hover {
+      background-color: #d0e3f4;
+    }
+
+    .timestamp {
+      font-size: 0.8em;
+      color: #7f8c8d;
+      margin-right: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>Electron Vosk Speech Recognition</h1>
-  <div id="status">Initializing...</div>
-  <div id="transcript">Waiting for speech input...</div>
+  <h1>Real-Time Whisper Transcription</h1>
+
+  <div class="control-panel">
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <div id="status">Ready to start</div>
+  </div>
+
+  <div id="transcriptContainer">
+    <h2>Transcription Results</h2>
+    <div id="transcript"></div>
+  </div>
+
   <script src="renderer.js"></script>
 </body>
 </html>
