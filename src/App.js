@@ -5,6 +5,8 @@ const SAMPLE_RATE = 16000;
 const CHANNELS = 1;
 const BIT_DEPTH = 16;
 const CHUNK_DURATION = 2; // seconds
+const pauseDelay = 4000; // 4 seconds, configurable
+const MAX_LENGTH = 50000 // keep last 50000 characters
 
 // Helper functions
 function mergeFloat32Arrays(arrays) {
@@ -57,8 +59,18 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [status, setStatus] = useState('Ready to start');
   const [transcripts, setTranscripts] = useState([]);
+  const [conversationBuffer, setConversationBuffer] = useState('');
 
   const isRecordingRef = useRef(false);
+  const pauseTimerRef = useRef(null);
+
+  const resetPauseTimer = () => {
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = setTimeout(() => {
+      console.log('Pause detected, trigger LLM with buffer:', conversationBuffer);
+      // TODO: Integrate LLM call here
+    }, pauseDelay);
+  };
 
   // Audio State
   let audioContext;
@@ -112,6 +124,7 @@ function App() {
     if (processor) processor.disconnect();
     if (audioContext) audioContext.close();
     if (audioChunks.length > 0) processAudioChunk();
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     isRecordingRef.current = false;
     setIsRecording(false);
     setStatus('Ready');
@@ -140,7 +153,19 @@ function App() {
       setStatus('Sending to Whisper...');
       const { success, result, error } = await window.electronAPI.transcribeAudio(wavBuffer);
       if (success) {
-        setTranscripts(prev => [{ segments: result || [], timestamp: new Date() }, ...prev]);
+        const newEntry = { segments: result || [], timestamp: new Date() };
+        setTranscripts(prev => [newEntry, ...prev]);
+        // Accumulate conversation buffer
+        const newText = result.filter(s => s.speech && s.speech.trim()).map(s => s.speech).join(' ');
+        const maxLength = MAX_LENGTH;
+        setConversationBuffer(prev => {
+          const updated = prev + (prev ? ' ' : '') + newText;
+          return updated.length > maxLength ? updated.slice(-maxLength) : updated;
+        });
+        const concatenated_audio_text = result.map((res) => {return res.speech}).join('').toLowerCase();
+        if (!concatenated_audio_text.includes('blank_audio')) {
+          resetPauseTimer();
+        }
         setStatus('Recording...');
         console.log("success: processAudioChunk");
       } else {
