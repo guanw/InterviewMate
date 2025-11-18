@@ -26,6 +26,21 @@ function init() {
 
   startBtn.addEventListener('click', startRecording);
   stopBtn.addEventListener('click', stopRecording);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', handleKeyDown);
+}
+
+// Handle keyboard shortcuts
+function handleKeyDown(e) {
+  // Ignore if typing in an input field
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if ((e.key === 's' || e.key === 'S') && !isRecording) {
+    startRecording();
+  } else if ((e.key === 'x' || e.key === 'X') && isRecording) {
+    stopRecording();
+  }
 }
 
 // Start Recording
