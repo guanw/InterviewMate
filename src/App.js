@@ -4,7 +4,7 @@ const { useState, useEffect, useRef, useCallback } = React;
 const SAMPLE_RATE = 16000;
 const CHANNELS = 1;
 const BIT_DEPTH = 16;
-const CHUNK_DURATION = 5; // seconds
+const CHUNK_DURATION = 2; // seconds
 
 // Helper functions
 function mergeFloat32Arrays(arrays) {
