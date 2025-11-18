@@ -17,6 +17,11 @@ app.whenReady().then(() => {
     }
   });
 
+  // Prevent window content from being captured by screen sharing tools
+  mainWindow.setContentProtection(true);
+  mainWindow.setSkipTaskbar(true);
+  mainWindow.setMenuBarVisibility(false);
+
   mainWindow.loadFile('index.html');
 });
 
