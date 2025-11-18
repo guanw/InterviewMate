@@ -40,7 +40,7 @@ ipcMain.handle('transcribe-audio', async (_, audioBuffer) => {
 
     // Transcribe with Whisper
     const result = await whisper(tempFilePath, {
-        modelName: "tiny.en",
+        modelName: "small.en",
         modelDownload: true,
         whisperOptions: {
           language: 'auto',         // default (use 'auto' for auto detect)
