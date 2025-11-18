@@ -102,20 +102,13 @@
   </style>
 </head>
 <body>
-  <h1>Real-Time Whisper Transcription</h1>
-
-  <div class="control-panel">
-    <button id="startBtn">Start Recording</button>
-    <button id="stopBtn" disabled>Stop Recording</button>
-    <div id="status">Ready to start</div>
-    <small>Keyboard shortcuts: Press 'S' to start, 'X' to stop</small>
-  </div>
-
-  <div id="transcriptContainer">
-    <h2>Transcription Results</h2>
-    <div id="transcript"></div>
-  </div>
-
+  <div id="root"></div>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="utils.js"></script>
+  <script src="audio.js"></script>
+  <script src="TranscriptEntry.js"></script>
+  <script src="App.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
