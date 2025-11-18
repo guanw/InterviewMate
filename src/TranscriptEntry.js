@@ -22,10 +22,10 @@ function TranscriptEntry({ entry }) {
 
   if (currentGroup) groups.push(currentGroup);
 
-  return React.createElement('div', { style: { marginBottom: '15px', padding: '10px', background: '#f8f9fa', borderRadius: '5px', borderLeft: '3px solid #3498db' } },
+  return React.createElement('div', { className: 'transcript-entry' },
     React.createElement('div', null, React.createElement('strong', null, entry.timestamp.toLocaleTimeString())),
-    React.createElement('div', { style: { marginTop: '5px', lineHeight: '1.5' } },
-      groups.map((group, i) => React.createElement('span', { key: i, style: { marginRight: '4px', padding: '2px 4px', borderRadius: '3px', backgroundColor: '#e8f4fc', cursor: 'pointer' }, title: `${group.start} - ${group.end}` }, group.text))
+    React.createElement('div', { className: 'transcript-content' },
+      groups.map((group, i) => React.createElement('span', { key: i, className: 'speech-segment', title: `${group.start} - ${group.end}` }, group.text))
     )
   );
 }

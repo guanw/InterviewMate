@@ -65,7 +65,6 @@ function App() {
   let analyser;
   let microphone;
   let processor;
-  let animationId;
   let audioChunks = [];
 
   useEffect(() => {
@@ -82,17 +81,14 @@ function App() {
     console.log("start: startRecording");
     try {
       setStatus('Initializing microphone...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: SAMPLE_RATE
-      });
 
+      // Get microphone stream
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 2048;
-
       microphone = audioContext.createMediaStreamSource(stream);
       microphone.connect(analyser);
-
       processor = audioContext.createScriptProcessor(4096, CHANNELS, CHANNELS);
       processor.onaudioprocess = processAudio;
       analyser.connect(processor);
@@ -104,7 +100,7 @@ function App() {
       setStatus('Recording...');
     } catch (error) {
       console.log("error: startRecording");
-      console.error("Microphone error:", error);
+      console.error("Audio error:", error);
       setStatus(`Error: ${error.message}`);
     }
     console.log("end: startRecording");
@@ -115,7 +111,6 @@ function App() {
     if (microphone) microphone.disconnect();
     if (processor) processor.disconnect();
     if (audioContext) audioContext.close();
-    cancelAnimationFrame(animationId);
     if (audioChunks.length > 0) processAudioChunk();
     isRecordingRef.current = false;
     setIsRecording(false);
@@ -133,6 +128,7 @@ function App() {
     }
     console.log("end: processAudio");
   }, []);
+
 
   const processAudioChunk = async () => {
     console.log("start: processAudioChunk");
@@ -157,15 +153,15 @@ function App() {
     }
   };
 
-  return React.createElement('div', { style: { fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', maxWidth: '900px', margin: '0 auto', padding: '20px', backgroundColor: '#f5f5f5' } },
+  return React.createElement('div', null,
     React.createElement('h1', null, 'Real-Time Whisper Transcription'),
-    React.createElement('div', { style: { background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', marginBottom: '20px' } },
-      React.createElement('button', { onClick: startRecording, disabled: isRecording, style: { padding: '10px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px', backgroundColor: isRecording ? '#ccc' : '#2ecc71', color: 'white' } }, 'Start Recording'),
-      React.createElement('button', { onClick: stopRecording, disabled: !isRecording, style: { padding: '10px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', backgroundColor: '#e74c3c', color: 'white' } }, 'Stop Recording'),
-      React.createElement('div', { style: { margin: '15px 0', padding: '10px', borderRadius: '4px', backgroundColor: '#f8f9fa', fontWeight: 'bold' } }, status),
-      React.createElement('small', { style: { color: '#7f8c8d' } }, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop')
+    React.createElement('div', { className: 'control-panel' },
+      React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn' }, 'Start Recording'),
+      React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
+      React.createElement('div', { className: 'status' }, status),
+      React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop')
     ),
-    React.createElement('div', { style: { background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' } },
+    React.createElement('div', { className: 'transcript-container' },
       React.createElement('h2', null, 'Transcription Results'),
       React.createElement('div', null,
         transcripts.map((entry, idx) => React.createElement(window.TranscriptEntry, { key: idx, entry: entry }))
