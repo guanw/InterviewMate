@@ -60,15 +60,30 @@ function App() {
   const [status, setStatus] = useState('Ready to start');
   const [transcripts, setTranscripts] = useState([]);
   const [conversationBuffer, setConversationBuffer] = useState('');
+  const [llmResponse, setLlmResponse] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const isRecordingRef = useRef(false);
   const pauseTimerRef = useRef(null);
 
   const resetPauseTimer = () => {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-    pauseTimerRef.current = setTimeout(() => {
-      console.log('Pause detected, trigger LLM with buffer:', conversationBuffer);
-      // TODO: Integrate LLM call here
+    pauseTimerRef.current = setTimeout(async () => {
+      console.log('Pause detected, triggering LLM with buffer:', conversationBuffer);
+      setIsAnalyzing(true);
+      try {
+        const { success, response, error } = await window.electronAPI.analyzeConversation(conversationBuffer);
+        if (success) {
+          setLlmResponse(response);
+        } else {
+          console.error('LLM error:', error);
+          setLlmResponse(`Error: ${error}`);
+        }
+      } catch (err) {
+        console.error('LLM call failed:', err);
+        setLlmResponse('Failed to analyze conversation');
+      }
+      setIsAnalyzing(false);
     }, pauseDelay);
   };
 
@@ -185,6 +200,10 @@ function App() {
       React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
       React.createElement('div', { className: 'status' }, status),
       React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop')
+    ),
+    React.createElement('div', { className: 'llm-container' },
+      React.createElement('h2', null, 'AI Analysis'),
+      isAnalyzing ? React.createElement('p', null, 'Analyzing conversation...') : React.createElement('pre', { className: 'llm-response' }, llmResponse || 'No analysis yet')
     ),
     React.createElement('div', { className: 'transcript-container' },
       React.createElement('h2', null, 'Transcription Results'),

@@ -1,8 +1,14 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { whisper } = require('whisper-node');
+const OpenAI = require('openai');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+
+const openai = new OpenAI({
+    apiKey: 'sk-c7225130cce440d2a30ffa210a274262',
+    baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+});
 
 let mainWindow;
 
@@ -66,4 +72,19 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('client-test', async () => {
     return "hello this is server";
+});
+
+ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
+    try {
+        const prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
+        const completion = await openai.chat.completions.create({
+            model: 'qwen3-max',
+            messages: [{ role: 'user', content: prompt }],
+            stream: false
+        });
+        return { success: true, response: completion.choices[0].message.content };
+    } catch (error) {
+        console.error('LLM error:', error);
+        return { success: false, error: error.message };
+    }
 });
