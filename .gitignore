@@ -3,3 +3,4 @@
 **/venv/
 .vscode/**
 ./vosk_wip/**
+.env

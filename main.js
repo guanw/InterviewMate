@@ -4,9 +4,11 @@ const OpenAI = require('openai');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const openai = new OpenAI({
-    apiKey: 'sk-c7225130cce440d2a30ffa210a274262',
+console.log('process.env.DASHSCOPE_API_KEY: ', process.env.DASHSCOPE_API_KEY)
+const llm = new OpenAI({
+    apiKey: process.env.DASHSCOPE_API_KEY,
     baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
 });
 
@@ -77,7 +79,7 @@ ipcMain.handle('client-test', async () => {
 ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
     try {
         const prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
-        const completion = await openai.chat.completions.create({
+        const completion = await llm.chat.completions.create({
             model: 'qwen3-max',
             messages: [{ role: 'user', content: prompt }],
             stream: false
