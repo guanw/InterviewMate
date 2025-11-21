@@ -227,15 +227,17 @@ function App() {
 
   return React.createElement('div', null,
     React.createElement('h1', null, 'Real-Time Whisper Transcription'),
-    React.createElement('div', { className: 'control-panel' },
-      React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn' }, 'Start Recording'),
-      React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
-      React.createElement('div', { className: 'status' }, status),
-      React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop')
-    ),
-    React.createElement('div', { className: 'llm-container' },
-      React.createElement('h2', null, 'AI Analysis'),
-      isAnalyzing ? React.createElement('p', null, 'Analyzing conversation...') : React.createElement('pre', { className: 'llm-response' }, llmResponse || 'No analysis yet')
+    React.createElement('div', { className: 'top-row' },
+      React.createElement('div', { className: 'control-panel' },
+        React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn', style: { marginBottom: '10px' } }, 'Start Recording'),
+        React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
+        React.createElement('div', { className: 'status' }, status),
+        React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop')
+      ),
+      React.createElement('div', { className: 'llm-container' },
+        React.createElement('h2', null, 'AI Analysis'),
+        isAnalyzing ? React.createElement('p', null, 'Analyzing conversation...') : React.createElement('pre', { className: 'llm-response' }, llmResponse || 'No analysis yet')
+      )
     ),
     React.createElement('div', { className: 'transcript-container' },
       React.createElement('h2', null, 'Transcription Results'),
