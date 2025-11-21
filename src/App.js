@@ -7,6 +7,7 @@ const BIT_DEPTH = 16;
 const CHUNK_DURATION = 2; // seconds
 const pauseDelay = 4000; // 4 seconds, configurable
 const MAX_LENGTH = 50000 // keep last 50000 characters
+const MAX_AUDIO_CHUNKS = 50; // Max chunks to prevent memory overflow
 
 // Helper functions
 function mergeFloat32Arrays(arrays) {
@@ -56,6 +57,7 @@ function writeString(view, offset, string) {
 }
 
 function App() {
+  // UI state variables (trigger re-renders)
   const [isRecording, setIsRecording] = useState(false);
   const [status, setStatus] = useState('Ready to start');
   const [transcripts, setTranscripts] = useState([]);
@@ -63,16 +65,26 @@ function App() {
   const [llmResponse, setLlmResponse] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const isRecordingRef = useRef(false);
-  const pauseTimerRef = useRef(null);
+  // Refs for synchronous access in callbacks and audio management
+  const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
+  const isRecordingRef = useRef(false); // Synchronous check in audio callbacks
+  const pauseTimerRef = useRef(null); // Timer management
+  const audioContextRef = useRef(null); // Audio context for cleanup
+  const analyserRef = useRef(null); // Audio analyser node
+  const microphoneRef = useRef(null); // Microphone source node
+  const processorRef = useRef(null); // Audio processor node
+  const audioChunksRef = useRef([]); // Audio data chunks
+  const transcriptScrollRef = useRef(null); // Scroll container ref
 
   const resetPauseTimer = () => {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     pauseTimerRef.current = setTimeout(async () => {
-      console.log('Pause detected, triggering LLM with buffer:', conversationBuffer);
+      const currentBuffer = conversationBufferRef.current;
+      console.log('Pause detected, triggering LLM with buffer:', currentBuffer);
+      console.log('Buffer length:', currentBuffer ? currentBuffer.length : 'null/undefined');
       setIsAnalyzing(true);
       try {
-        const { success, response, error } = await window.electronAPI.analyzeConversation(conversationBuffer);
+        const { success, response, error } = await window.electronAPI.analyzeConversation(currentBuffer);
         if (success) {
           setLlmResponse(response);
         } else {
@@ -87,12 +99,7 @@ function App() {
     }, pauseDelay);
   };
 
-  // Audio State
-  let audioContext;
-  let analyser;
-  let microphone;
-  let processor;
-  let audioChunks = [];
+  // Audio State (now using refs)
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -104,6 +111,12 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isRecording]);
 
+  useEffect(() => {
+    if (transcriptScrollRef.current) {
+      transcriptScrollRef.current.scrollTop = 0; // Scroll to top for latest conversation
+    }
+  }, [transcripts]);
+
   const startRecording = async () => {
     console.log("start: startRecording");
     try {
@@ -111,17 +124,17 @@ function App() {
 
       // Get microphone stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048;
-      microphone = audioContext.createMediaStreamSource(stream);
-      microphone.connect(analyser);
-      processor = audioContext.createScriptProcessor(4096, CHANNELS, CHANNELS);
-      processor.onaudioprocess = processAudio;
-      analyser.connect(processor);
-      processor.connect(audioContext.destination);
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 2048;
+      microphoneRef.current = audioContextRef.current.createMediaStreamSource(stream);
+      microphoneRef.current.connect(analyserRef.current);
+      processorRef.current = audioContextRef.current.createScriptProcessor(4096, CHANNELS, CHANNELS);
+      processorRef.current.onaudioprocess = processAudio;
+      analyserRef.current.connect(processorRef.current);
+      processorRef.current.connect(audioContextRef.current.destination);
 
-      audioChunks = [];
+      audioChunksRef.current = [];
       isRecordingRef.current = true;
       setIsRecording(true);
       setStatus('Recording...');
@@ -135,53 +148,73 @@ function App() {
 
   const stopRecording = () => {
     if (!isRecording) return;
-    if (microphone) microphone.disconnect();
-    if (processor) processor.disconnect();
-    if (audioContext) audioContext.close();
-    if (audioChunks.length > 0) processAudioChunk();
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    console.log("Stopping recording...");
     isRecordingRef.current = false;
     setIsRecording(false);
+    setStatus('Stopping...');
+    // Disconnect audio nodes
+    if (processorRef.current) {
+      processorRef.current.onaudioprocess = null; // Clear callback
+      processorRef.current.disconnect();
+    }
+    if (microphoneRef.current) microphoneRef.current.disconnect();
+    if (analyserRef.current) analyserRef.current.disconnect();
+    if (audioContextRef.current) audioContextRef.current.close();
+    // Process remaining chunks
+    if (audioChunksRef.current.length > 0) {
+      processAudioChunk();
+    }
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     setStatus('Ready');
   };
 
   const processAudio = useCallback((e) => {
-    console.log("start: processAudio");
-    if (!isRecordingRef.current) return;
-    const inputData = e.inputBuffer.getChannelData(0);
-    audioChunks.push(new Float32Array(inputData));
-    const chunkSize = SAMPLE_RATE * CHUNK_DURATION;
-    if (audioChunks.reduce((sum, chunk) => sum + chunk.length, 0) >= chunkSize) {
-      processAudioChunk();
+    try {
+      console.log("start: processAudio");
+      if (!isRecordingRef.current) return;
+      const inputData = e.inputBuffer.getChannelData(0);
+      audioChunksRef.current.push(new Float32Array(inputData));
+      const chunkSize = SAMPLE_RATE * CHUNK_DURATION;
+      const totalSamples = audioChunksRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
+      if (totalSamples >= chunkSize || audioChunksRef.current.length >= MAX_AUDIO_CHUNKS) {
+        processAudioChunk();
+      }
+      console.log("end: processAudio");
+    } catch (error) {
+      console.error("Error in processAudio:", error);
     }
-    console.log("end: processAudio");
   }, []);
 
 
   const processAudioChunk = async () => {
     console.log("start: processAudioChunk");
-    if (audioChunks.length === 0) return;
-    const combined = mergeFloat32Arrays(audioChunks);
-    audioChunks = [];
+    if (audioChunksRef.current.length === 0) return;
+    const combined = mergeFloat32Arrays(audioChunksRef.current);
+    audioChunksRef.current = []; // Reset even if error
     const wavBuffer = convertToWav(combined, SAMPLE_RATE, CHANNELS, BIT_DEPTH);
     try {
       setStatus('Sending to Whisper...');
       const { success, result, error } = await window.electronAPI.transcribeAudio(wavBuffer);
       if (success) {
-        const newEntry = { segments: result || [], timestamp: new Date() };
+        const segments = Array.isArray(result) ? result : [];
+        const newEntry = { segments, timestamp: new Date() };
         setTranscripts(prev => [newEntry, ...prev]);
         // Accumulate conversation buffer
-        const newText = result.filter(s => s.speech && s.speech.trim()).map(s => s.speech).join(' ');
+        const newText = segments.filter(s => s.speech && s.speech.trim()).map(s => s.speech).join(' ');
         const maxLength = MAX_LENGTH;
         setConversationBuffer(prev => {
           const updated = prev + (prev ? ' ' : '') + newText;
-          return updated.length > maxLength ? updated.slice(-maxLength) : updated;
+          const final = updated.length > maxLength ? updated.slice(-maxLength) : updated;
+          conversationBufferRef.current = final;
+          return final;
         });
-        const concatenated_audio_text = result.map((res) => {return res.speech}).join('').toLowerCase();
+        const concatenated_audio_text = segments.map((res) => res.speech || '').join('').toLowerCase();
         if (!concatenated_audio_text.includes('blank_audio')) {
           resetPauseTimer();
         }
-        setStatus('Recording...');
+        if (isRecordingRef.current) {
+          setStatus('Recording...');
+        }
         console.log("success: processAudioChunk");
       } else {
         console.log("error: processAudioChunk --", error);
@@ -207,7 +240,7 @@ function App() {
     ),
     React.createElement('div', { className: 'transcript-container' },
       React.createElement('h2', null, 'Transcription Results'),
-      React.createElement('div', null,
+      React.createElement('div', { ref: transcriptScrollRef, style: { height: '700px', overflowY: 'auto' } },
         transcripts.map((entry, idx) => React.createElement(window.TranscriptEntry, { key: idx, entry: entry }))
       )
     )

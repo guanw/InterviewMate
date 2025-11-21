@@ -77,10 +77,12 @@ ipcMain.handle('client-test', async () => {
 });
 
 ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
+    console.log('Received conversationBuffer:', conversationBuffer);
+    console.log('Type:', typeof conversationBuffer);
     try {
         const prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
         const completion = await llm.chat.completions.create({
-            model: 'qwen3-max',
+            model: 'qwen3-max-2025-09-23',
             messages: [{ role: 'user', content: prompt }],
             stream: false
         });
