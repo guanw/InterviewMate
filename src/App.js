@@ -9,6 +9,38 @@ const pauseDelay = 4000; // 4 seconds, configurable
 const MAX_LENGTH = 50000 // keep last 50000 characters
 const MAX_AUDIO_CHUNKS = 50; // Max chunks to prevent memory overflow
 
+// Audio Manager class to encapsulate audio-related state and refs
+class AudioManager {
+  constructor() {
+    this.isRecording = false;
+    this.audioContext = null;
+    this.analyser = null;
+    this.microphone = null;
+    this.processor = null;
+    this.audioChunks = [];
+  }
+
+  setRecording(value) { this.isRecording = value; }
+  getRecording() { return this.isRecording; }
+
+  setAudioContext(ctx) { this.audioContext = ctx; }
+  getAudioContext() { return this.audioContext; }
+
+  setAnalyser(analyser) { this.analyser = analyser; }
+  getAnalyser() { return this.analyser; }
+
+  setMicrophone(mic) { this.microphone = mic; }
+  getMicrophone() { return this.microphone; }
+
+  setProcessor(proc) { this.processor = proc; }
+  getProcessor() { return this.processor; }
+
+  setAudioChunks(chunks) { this.audioChunks = chunks; }
+  getAudioChunks() { return this.audioChunks; }
+  addAudioChunk(chunk) { this.audioChunks.push(chunk); }
+  clearAudioChunks() { this.audioChunks = []; }
+}
+
 // Helper functions
 function mergeFloat32Arrays(arrays) {
   const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
@@ -67,14 +99,9 @@ function App() {
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
-  const isRecordingRef = useRef(false); // Synchronous check in audio callbacks
   const pauseTimerRef = useRef(null); // Timer management
-  const audioContextRef = useRef(null); // Audio context for cleanup
-  const analyserRef = useRef(null); // Audio analyser node
-  const microphoneRef = useRef(null); // Microphone source node
-  const processorRef = useRef(null); // Audio processor node
-  const audioChunksRef = useRef([]); // Audio data chunks
   const transcriptScrollRef = useRef(null); // Scroll container ref
+  const audioManagerRef = useRef(new AudioManager()); // Encapsulates audio-related state
 
   const resetPauseTimer = () => {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
@@ -124,18 +151,22 @@ function App() {
 
       // Get microphone stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 2048;
-      microphoneRef.current = audioContextRef.current.createMediaStreamSource(stream);
-      microphoneRef.current.connect(analyserRef.current);
-      processorRef.current = audioContextRef.current.createScriptProcessor(4096, CHANNELS, CHANNELS);
-      processorRef.current.onaudioprocess = processAudio;
-      analyserRef.current.connect(processorRef.current);
-      processorRef.current.connect(audioContextRef.current.destination);
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      const microphone = audioContext.createMediaStreamSource(stream);
+      microphone.connect(analyser);
+      const processor = audioContext.createScriptProcessor(4096, CHANNELS, CHANNELS);
+      processor.onaudioprocess = processAudio;
+      analyser.connect(processor);
+      processor.connect(audioContext.destination);
 
-      audioChunksRef.current = [];
-      isRecordingRef.current = true;
+      audioManagerRef.current.setAudioContext(audioContext);
+      audioManagerRef.current.setAnalyser(analyser);
+      audioManagerRef.current.setMicrophone(microphone);
+      audioManagerRef.current.setProcessor(processor);
+      audioManagerRef.current.clearAudioChunks();
+      audioManagerRef.current.setRecording(true);
       setIsRecording(true);
       setStatus('Recording...');
     } catch (error) {
@@ -149,19 +180,23 @@ function App() {
   const stopRecording = () => {
     if (!isRecording) return;
     console.log("Stopping recording...");
-    isRecordingRef.current = false;
+    audioManagerRef.current.setRecording(false);
     setIsRecording(false);
     setStatus('Stopping...');
     // Disconnect audio nodes
-    if (processorRef.current) {
-      processorRef.current.onaudioprocess = null; // Clear callback
-      processorRef.current.disconnect();
+    const processor = audioManagerRef.current.getProcessor();
+    if (processor) {
+      processor.onaudioprocess = null; // Clear callback
+      processor.disconnect();
     }
-    if (microphoneRef.current) microphoneRef.current.disconnect();
-    if (analyserRef.current) analyserRef.current.disconnect();
-    if (audioContextRef.current) audioContextRef.current.close();
+    const microphone = audioManagerRef.current.getMicrophone();
+    if (microphone) microphone.disconnect();
+    const analyser = audioManagerRef.current.getAnalyser();
+    if (analyser) analyser.disconnect();
+    const audioContext = audioManagerRef.current.getAudioContext();
+    if (audioContext) audioContext.close();
     // Process remaining chunks
-    if (audioChunksRef.current.length > 0) {
+    if (audioManagerRef.current.getAudioChunks().length > 0) {
       processAudioChunk();
     }
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
@@ -171,12 +206,12 @@ function App() {
   const processAudio = useCallback((e) => {
     try {
       console.log("start: processAudio");
-      if (!isRecordingRef.current) return;
+      if (!audioManagerRef.current.getRecording()) return;
       const inputData = e.inputBuffer.getChannelData(0);
-      audioChunksRef.current.push(new Float32Array(inputData));
+      audioManagerRef.current.addAudioChunk(new Float32Array(inputData));
       const chunkSize = SAMPLE_RATE * CHUNK_DURATION;
-      const totalSamples = audioChunksRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
-      if (totalSamples >= chunkSize || audioChunksRef.current.length >= MAX_AUDIO_CHUNKS) {
+      const totalSamples = audioManagerRef.current.getAudioChunks().reduce((sum, chunk) => sum + chunk.length, 0);
+      if (totalSamples >= chunkSize || audioManagerRef.current.getAudioChunks().length >= MAX_AUDIO_CHUNKS) {
         processAudioChunk();
       }
       console.log("end: processAudio");
@@ -188,9 +223,10 @@ function App() {
 
   const processAudioChunk = async () => {
     console.log("start: processAudioChunk");
-    if (audioChunksRef.current.length === 0) return;
-    const combined = mergeFloat32Arrays(audioChunksRef.current);
-    audioChunksRef.current = []; // Reset even if error
+    const chunks = audioManagerRef.current.getAudioChunks();
+    if (chunks.length === 0) return;
+    const combined = mergeFloat32Arrays(chunks);
+    audioManagerRef.current.clearAudioChunks(); // Reset even if error
     const wavBuffer = convertToWav(combined, SAMPLE_RATE, CHANNELS, BIT_DEPTH);
     try {
       setStatus('Sending to Whisper...');
@@ -212,7 +248,7 @@ function App() {
         if (!concatenated_audio_text.includes('blank_audio')) {
           resetPauseTimer();
         }
-        if (isRecordingRef.current) {
+        if (audioManagerRef.current.getRecording()) {
           setStatus('Recording...');
         }
         console.log("success: processAudioChunk");
