@@ -1,45 +1,8 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
-// Audio Configuration
-const SAMPLE_RATE = 16000;
-const CHANNELS = 1;
-const BIT_DEPTH = 16;
-const CHUNK_DURATION = 2; // seconds
-const pauseDelay = 4000; // 4 seconds, configurable
-const MAX_LENGTH = 50000 // keep last 50000 characters
-const MAX_AUDIO_CHUNKS = 50; // Max chunks to prevent memory overflow
+// Audio Configuration (from Constants.js)
+const { SAMPLE_RATE, CHANNELS, BIT_DEPTH, CHUNK_DURATION, PAUSE_DELAY, MAX_LENGTH, MAX_AUDIO_CHUNKS } = window.Constants;
 
-// Audio Manager class to encapsulate audio-related state and refs
-class AudioManager {
-  constructor() {
-    this.isRecording = false;
-    this.audioContext = null;
-    this.analyser = null;
-    this.microphone = null;
-    this.processor = null;
-    this.audioChunks = [];
-  }
-
-  setRecording(value) { this.isRecording = value; }
-  getRecording() { return this.isRecording; }
-
-  setAudioContext(ctx) { this.audioContext = ctx; }
-  getAudioContext() { return this.audioContext; }
-
-  setAnalyser(analyser) { this.analyser = analyser; }
-  getAnalyser() { return this.analyser; }
-
-  setMicrophone(mic) { this.microphone = mic; }
-  getMicrophone() { return this.microphone; }
-
-  setProcessor(proc) { this.processor = proc; }
-  getProcessor() { return this.processor; }
-
-  setAudioChunks(chunks) { this.audioChunks = chunks; }
-  getAudioChunks() { return this.audioChunks; }
-  addAudioChunk(chunk) { this.audioChunks.push(chunk); }
-  clearAudioChunks() { this.audioChunks = []; }
-}
 
 // Helper functions
 function mergeFloat32Arrays(arrays) {
@@ -101,7 +64,7 @@ function App() {
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
   const pauseTimerRef = useRef(null); // Timer management
   const transcriptScrollRef = useRef(null); // Scroll container ref
-  const audioManagerRef = useRef(new AudioManager()); // Encapsulates audio-related state
+  const audioManagerRef = useRef(new window.AudioManager()); // Encapsulates audio-related state
 
   const resetPauseTimer = () => {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
@@ -123,7 +86,7 @@ function App() {
         setLlmResponse('Failed to analyze conversation');
       }
       setIsAnalyzing(false);
-    }, pauseDelay);
+    }, PAUSE_DELAY);
   };
 
   // Audio State (now using refs)
