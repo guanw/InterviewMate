@@ -29,9 +29,17 @@ An Electron application that provides real-time audio transcription using OpenAI
    npm install
    ```
 
+3. Download the Whisper model:
+
+   ```
+   npx whisper-node download
+   ```
+
+   This downloads the required Whisper model files for offline transcription.
+
    **Note**: If ESLint is not found after installation, you may need to install it globally or ensure your Node.js/npm setup is correct.
 
-3. Create a `.env` file in the root directory with your DashScope API key:
+4. Create a `.env` file in the root directory with your DashScope API key:
 
    ```
    DASHSCOPE_API_KEY=your_api_key_here
@@ -39,7 +47,7 @@ An Electron application that provides real-time audio transcription using OpenAI
 
    You can obtain an API key from [DashScope](https://dashscope.aliyun.com/).
 
-4. Start the application:
+5. Start the application:
    ```
    npm start
    ```
