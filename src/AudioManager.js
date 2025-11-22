@@ -5,7 +5,7 @@ window.AudioManager = class AudioManager {
     this.audioContext = null;
     this.analyser = null;
     this.microphone = null;
-    this.processor = null;
+    this.workletNode = null;
     this.audioChunks = [];
   }
 
@@ -21,8 +21,12 @@ window.AudioManager = class AudioManager {
   setMicrophone(mic) { this.microphone = mic; }
   getMicrophone() { return this.microphone; }
 
-  setProcessor(proc) { this.processor = proc; }
-  getProcessor() { return this.processor; }
+  setWorkletNode(node) { this.workletNode = node; }
+  getWorkletNode() { return this.workletNode; }
+
+  // Legacy method for backward compatibility
+  setProcessor(proc) { this.workletNode = proc; }
+  getProcessor() { return this.workletNode; }
 
   setAudioChunks(chunks) { this.audioChunks = chunks; }
   getAudioChunks() { return this.audioChunks; }

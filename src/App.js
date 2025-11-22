@@ -115,21 +115,45 @@ function App() {
       // Get microphone stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+
+      // Resume audio context if suspended (required by some browsers)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 2048;
       const microphone = audioContext.createMediaStreamSource(stream);
       microphone.connect(analyser);
-      const processor = audioContext.createScriptProcessor(4096, CHANNELS, CHANNELS);
-      processor.onaudioprocess = processAudio;
-      analyser.connect(processor);
-      processor.connect(audioContext.destination);
+
+      // Load and create AudioWorklet
+      await audioContext.audioWorklet.addModule('src/AudioWorkletProcessor.js');
+      const workletNode = new AudioWorkletNode(audioContext, 'audio-processor');
+
+      // Handle messages from AudioWorklet
+      workletNode.port.onmessage = (event) => {
+        const { type, data } = event.data;
+        if (type === 'audioData') {
+          // Process audio chunks from worklet
+          const combined = mergeFloat32Arrays(data.map(arr => new Float32Array(arr)));
+          audioManagerRef.current.setAudioChunks([combined]);
+          processAudioChunk();
+        }
+      };
+
+      analyser.connect(workletNode);
+      workletNode.connect(audioContext.destination);
 
       audioManagerRef.current.setAudioContext(audioContext);
       audioManagerRef.current.setAnalyser(analyser);
       audioManagerRef.current.setMicrophone(microphone);
-      audioManagerRef.current.setProcessor(processor);
+      audioManagerRef.current.setWorkletNode(workletNode);
       audioManagerRef.current.clearAudioChunks();
       audioManagerRef.current.setRecording(true);
+
+      // Start the worklet
+      workletNode.port.postMessage({ type: 'start' });
+
       setIsRecording(true);
       setStatus('Recording...');
     } catch (error) {
@@ -146,42 +170,29 @@ function App() {
     audioManagerRef.current.setRecording(false);
     setIsRecording(false);
     setStatus('Stopping...');
-    // Disconnect audio nodes
-    const processor = audioManagerRef.current.getProcessor();
-    if (processor) {
-      processor.onaudioprocess = null; // Clear callback
-      processor.disconnect();
+
+    // Stop AudioWorklet
+    const workletNode = audioManagerRef.current.getWorkletNode();
+    if (workletNode) {
+      workletNode.port.postMessage({ type: 'stop' });
+      workletNode.disconnect();
     }
+
+    // Disconnect audio nodes
     const microphone = audioManagerRef.current.getMicrophone();
     if (microphone) microphone.disconnect();
     const analyser = audioManagerRef.current.getAnalyser();
     if (analyser) analyser.disconnect();
     const audioContext = audioManagerRef.current.getAudioContext();
     if (audioContext) audioContext.close();
-    // Process remaining chunks
-    if (audioManagerRef.current.getAudioChunks().length > 0) {
-      processAudioChunk();
-    }
+
+    // Clear any pending timers
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     setStatus('Ready');
   };
 
-  const processAudio = useCallback((e) => {
-    try {
-      console.log("start: processAudio");
-      if (!audioManagerRef.current.getRecording()) return;
-      const inputData = e.inputBuffer.getChannelData(0);
-      audioManagerRef.current.addAudioChunk(new Float32Array(inputData));
-      const chunkSize = SAMPLE_RATE * CHUNK_DURATION;
-      const totalSamples = audioManagerRef.current.getAudioChunks().reduce((sum, chunk) => sum + chunk.length, 0);
-      if (totalSamples >= chunkSize || audioManagerRef.current.getAudioChunks().length >= MAX_AUDIO_CHUNKS) {
-        processAudioChunk();
-      }
-      console.log("end: processAudio");
-    } catch (error) {
-      console.error("Error in processAudio:", error);
-    }
-  }, []);
+  // Audio processing is now handled by AudioWorklet
+  // This function is no longer needed
 
 
   const processAudioChunk = async () => {
