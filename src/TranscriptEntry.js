@@ -1,4 +1,4 @@
-function TranscriptEntry({ entry }) {
+export function TranscriptEntry({ entry }) {
   if (!Array.isArray(entry.segments) || entry.segments.length === 0) return null;
 
   const filteredSegments = entry.segments.filter(segment => segment.speech && segment.speech.trim());
@@ -10,5 +10,3 @@ function TranscriptEntry({ entry }) {
     )
   );
 }
-
-window.TranscriptEntry = TranscriptEntry;

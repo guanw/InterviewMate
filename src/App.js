@@ -1,7 +1,8 @@
-const { useState, useEffect, useRef, useCallback } = React;
+import { SAMPLE_RATE, CHANNELS, BIT_DEPTH, PAUSE_DELAY, MAX_LENGTH } from './Constants.js';
+import { AudioManager } from './AudioManager.js';
+import { TranscriptEntry } from './TranscriptEntry.js';
 
-// Audio Configuration (from Constants.js)
-const { SAMPLE_RATE, CHANNELS, BIT_DEPTH, PAUSE_DELAY, MAX_LENGTH } = window.Constants;
+const { useState, useEffect, useRef, useCallback } = React;
 
 
 // Helper functions
@@ -64,7 +65,7 @@ function App() {
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
   const pauseTimerRef = useRef(null); // Timer management
   const transcriptScrollRef = useRef(null); // Scroll container ref
-  const audioManagerRef = useRef(new window.AudioManager()); // Encapsulates audio-related state
+  const audioManagerRef = useRef(new AudioManager()); // Encapsulates audio-related state
 
   const resetPauseTimer = () => {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
@@ -255,10 +256,10 @@ function App() {
     React.createElement('div', { className: 'transcript-container' },
       React.createElement('h2', null, 'Transcription Results'),
       React.createElement('div', { ref: transcriptScrollRef, style: { height: '700px', overflowY: 'auto' } },
-        transcripts.map((entry, idx) => React.createElement(window.TranscriptEntry, { key: idx, entry: entry }))
+        transcripts.map((entry, idx) => React.createElement(TranscriptEntry, { key: idx, entry: entry }))
       )
     )
   );
 }
 
-window.App = App;
+export { App };

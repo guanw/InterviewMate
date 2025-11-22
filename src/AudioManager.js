@@ -1,5 +1,5 @@
 // Audio Manager class to encapsulate audio-related state and refs
-window.AudioManager = class AudioManager {
+export class AudioManager {
   constructor() {
     this.isRecording = false;
     this.audioContext = null;
