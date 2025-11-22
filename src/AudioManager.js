@@ -9,8 +9,8 @@ window.AudioManager = class AudioManager {
     this.audioChunks = [];
   }
 
-  setRecording(value) { this.isRecording = value; }
-  getRecording() { return this.isRecording; }
+  setIsRecording(value) { this.isRecording = value; }
+  getIsRecording() { return this.isRecording; }
 
   setAudioContext(ctx) { this.audioContext = ctx; }
   getAudioContext() { return this.audioContext; }

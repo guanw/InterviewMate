@@ -149,7 +149,7 @@ function App() {
       audioManagerRef.current.setMicrophone(microphone);
       audioManagerRef.current.setWorkletNode(workletNode);
       audioManagerRef.current.clearAudioChunks();
-      audioManagerRef.current.setRecording(true);
+      audioManagerRef.current.setIsRecording(true);
 
       // Start the worklet
       workletNode.port.postMessage({ type: 'start' });
@@ -167,7 +167,7 @@ function App() {
   const stopRecording = () => {
     if (!isRecording) return;
     console.log("Stopping recording...");
-    audioManagerRef.current.setRecording(false);
+    audioManagerRef.current.setIsRecording(false);
     setIsRecording(false);
     setStatus('Stopping...');
 
@@ -186,8 +186,9 @@ function App() {
     const audioContext = audioManagerRef.current.getAudioContext();
     if (audioContext) audioContext.close();
 
-    // Clear any pending timers
+    // Clear any pending timers and audio chunks
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    audioManagerRef.current.clearAudioChunks();
     setStatus('Ready');
   };
 
@@ -197,6 +198,11 @@ function App() {
 
   const processAudioChunk = async () => {
     console.log("start: processAudioChunk");
+    // Don't process if recording has been stopped
+    if (!audioManagerRef.current.getIsRecording()) {
+      console.log("Recording stopped, skipping audio chunk processing");
+      return;
+    }
     const chunks = audioManagerRef.current.getAudioChunks();
     if (chunks.length === 0) return;
     const combined = mergeFloat32Arrays(chunks);
@@ -222,7 +228,7 @@ function App() {
         if (!concatenated_audio_text.includes('blank_audio')) {
           resetPauseTimer();
         }
-        if (audioManagerRef.current.getRecording()) {
+        if (audioManagerRef.current.getIsRecording()) {
           setStatus('Recording...');
         }
         console.log("success: processAudioChunk");
