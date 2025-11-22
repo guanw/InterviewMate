@@ -1,7 +1,7 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
 // Audio Configuration (from Constants.js)
-const { SAMPLE_RATE, CHANNELS, BIT_DEPTH, CHUNK_DURATION, PAUSE_DELAY, MAX_LENGTH, MAX_AUDIO_CHUNKS } = window.Constants;
+const { SAMPLE_RATE, CHANNELS, BIT_DEPTH, PAUSE_DELAY, MAX_LENGTH } = window.Constants;
 
 
 // Helper functions
