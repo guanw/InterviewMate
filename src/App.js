@@ -192,10 +192,6 @@ function App() {
     setStatus('Ready');
   };
 
-  // Audio processing is now handled by AudioWorklet
-  // This function is no longer needed
-
-
   const processAudioChunk = async () => {
     console.log("start: processAudioChunk");
     // Don't process if recording has been stopped
