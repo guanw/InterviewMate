@@ -6,6 +6,18 @@ const fs = require('fs');
 const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Enable hot reloading in development
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    require('electron-reload')(__dirname, {
+      electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
+      hardResetMethod: 'exit'
+    });
+  } catch (err) {
+    console.log('electron-reload not found, running without hot reload');
+  }
+}
+
 console.log('process.env.DASHSCOPE_API_KEY: ', process.env.DASHSCOPE_API_KEY)
 const llm = new OpenAI({
     apiKey: process.env.DASHSCOPE_API_KEY,

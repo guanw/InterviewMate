@@ -3,10 +3,12 @@
   "version": "0.0.1",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron ."
   },
   "devDependencies": {
     "electron": "^25.0.0",
+    "electron-reload": "^2.0.0-alpha.1",
     "express": "^5.1.0"
   },
   "dependencies": {
