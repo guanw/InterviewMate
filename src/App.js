@@ -240,7 +240,6 @@ function App() {
   };
 
   return React.createElement('div', null,
-    React.createElement('h1', null, 'Real-Time Whisper Transcription'),
     React.createElement('div', { className: 'top-row' },
       React.createElement('div', { className: 'control-panel' },
         React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn', style: { marginBottom: '10px' } }, 'Start Recording'),
@@ -255,7 +254,7 @@ function App() {
     ),
     React.createElement('div', { className: 'transcript-container' },
       React.createElement('h2', null, 'Transcription Results'),
-      React.createElement('div', { ref: transcriptScrollRef, style: { height: '700px', overflowY: 'auto' } },
+      React.createElement('div', { ref: transcriptScrollRef, style: { height: '500px', overflowY: 'auto' } },
         transcripts.map((entry, idx) => React.createElement(TranscriptEntry, { key: idx, entry: entry }))
       )
     )
