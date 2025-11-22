@@ -33,8 +33,8 @@ export class MetricsManager {
     const duration = endTime - startTime;
     this.metrics.audioProcessing.push({
       timestamp: Date.now(),
-      duration: duration,
-      chunkSize: chunkSize
+      duration,
+      chunkSize
     });
 
     // Keep only recent entries
@@ -50,8 +50,8 @@ export class MetricsManager {
     const duration = endTime - startTime;
     this.metrics.transcription.push({
       timestamp: Date.now(),
-      duration: duration,
-      audioSize: audioSize
+      duration,
+      audioSize
     });
 
     // Keep only recent entries
@@ -82,8 +82,8 @@ export class MetricsManager {
     const duration = endTime - startTime;
     this.metrics.llmAnalysis.push({
       timestamp: Date.now(),
-      duration: duration,
-      bufferLength: bufferLength
+      duration,
+      bufferLength
     });
 
     // Keep only recent entries

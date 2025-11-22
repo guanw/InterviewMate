@@ -4,11 +4,16 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "NODE_ENV=development electron ."
+    "dev": "NODE_ENV=development electron .",
+    "lint": "eslint src/ main.js preload.js renderer.js",
+    "lint:fix": "eslint src/ main.js preload.js renderer.js --fix"
   },
   "devDependencies": {
     "electron": "^25.0.0",
     "electron-reload": "^2.0.0-alpha.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "express": "^5.1.0"
   },
   "dependencies": {

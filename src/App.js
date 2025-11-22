@@ -304,7 +304,7 @@ function App() {
     React.createElement('div', { className: 'transcript-container' },
       React.createElement('h2', null, 'Transcription Results'),
       React.createElement('div', { ref: transcriptScrollRef, style: { height: '500px', overflowY: 'auto' } },
-        transcripts.map((entry, idx) => React.createElement(TranscriptEntry, { key: idx, entry: entry }))
+        transcripts.map((entry, idx) => React.createElement(TranscriptEntry, { key: idx, entry }))
       )
     ),
     // Metrics Modal

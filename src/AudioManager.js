@@ -32,4 +32,4 @@ export class AudioManager {
   getAudioChunks() { return this.audioChunks; }
   addAudioChunk(chunk) { this.audioChunks.push(chunk); }
   clearAudioChunks() { this.audioChunks = []; }
-};
+}
