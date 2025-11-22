@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const { whisper } = require('whisper-node');
 const OpenAI = require('openai');
 const path = require('path');
@@ -43,6 +43,42 @@ app.whenReady().then(() => {
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.loadFile('index.html');
+
+  // Create application menu
+  const template = [
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Performance Metrics',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => {
+            mainWindow.webContents.send('show-metrics');
+          }
+        },
+        { type: 'separator' },
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 });
 
 ipcMain.handle('transcribe-audio', async (_, audioBuffer) => {

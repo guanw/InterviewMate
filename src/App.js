@@ -1,8 +1,10 @@
 import { SAMPLE_RATE, CHANNELS, BIT_DEPTH, PAUSE_DELAY, MAX_LENGTH } from './Constants.js';
 import { AudioManager } from './AudioManager.js';
 import { TranscriptEntry } from './TranscriptEntry.js';
+import { MetricsManager } from './MetricsManager.js';
+import { MetricsDisplay } from './MetricsDisplay.js';
 
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef } = React;
 
 
 // Helper functions
@@ -55,17 +57,20 @@ function writeString(view, offset, string) {
 function App() {
   // UI state variables (trigger re-renders)
   const [isRecording, setIsRecording] = useState(false);
-  const [status, setStatus] = useState('Ready to start');
+  const [status, setStatus] = useState('Ready');
   const [transcripts, setTranscripts] = useState([]);
   const [conversationBuffer, setConversationBuffer] = useState('');
   const [llmResponse, setLlmResponse] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [metricsSummary, setMetricsSummary] = useState(null);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
   const pauseTimerRef = useRef(null); // Timer management
   const transcriptScrollRef = useRef(null); // Scroll container ref
   const audioManagerRef = useRef(new AudioManager()); // Encapsulates audio-related state
+  const metricsManagerRef = useRef(new MetricsManager()); // Performance metrics tracking
 
   const resetPauseTimer = () => {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
@@ -75,7 +80,11 @@ function App() {
       console.log('Buffer length:', currentBuffer ? currentBuffer.length : 'null/undefined');
       setIsAnalyzing(true);
       try {
+        const llmStart = performance.now();
         const { success, response, error } = await window.electronAPI.analyzeConversation(currentBuffer);
+        const llmEnd = performance.now();
+        metricsManagerRef.current.trackLLMAnalysis(llmStart, llmEnd, currentBuffer.length);
+
         if (success) {
           setLlmResponse(response);
         } else {
@@ -108,10 +117,31 @@ function App() {
     }
   }, [transcripts]);
 
+  // Update metrics summary periodically
+  useEffect(() => {
+    const updateMetrics = () => {
+      setMetricsSummary(metricsManagerRef.current.getMetricsSummary());
+    };
+
+    // Update immediately and then every 2 seconds
+    updateMetrics();
+    const interval = setInterval(updateMetrics, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Function to clear metrics
+  const clearMetrics = () => {
+    metricsManagerRef.current.clearMetrics();
+    setMetricsSummary(null);
+  };
+
   const startRecording = async () => {
     console.log("start: startRecording");
     try {
       setStatus('Initializing microphone...');
+
+      // Start metrics tracking session
+      metricsManagerRef.current.startRecordingSession();
 
       // Get microphone stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -195,6 +225,8 @@ function App() {
 
   const processAudioChunk = async () => {
     console.log("start: processAudioChunk");
+    const audioProcessingStart = performance.now();
+
     // Don't process if recording has been stopped
     if (!audioManagerRef.current.getIsRecording()) {
       console.log("Recording stopped, skipping audio chunk processing");
@@ -205,9 +237,16 @@ function App() {
     const combined = mergeFloat32Arrays(chunks);
     audioManagerRef.current.clearAudioChunks(); // Reset even if error
     const wavBuffer = convertToWav(combined, SAMPLE_RATE, CHANNELS, BIT_DEPTH);
+
+    const audioProcessingEnd = performance.now();
+    metricsManagerRef.current.trackAudioProcessing(audioProcessingStart, audioProcessingEnd, wavBuffer.length);
+
     try {
       setStatus('Sending to Whisper...');
+      const transcriptionStart = performance.now();
       const { success, result, error } = await window.electronAPI.transcribeAudio(wavBuffer);
+      const transcriptionEnd = performance.now();
+      metricsManagerRef.current.trackTranscription(transcriptionStart, transcriptionEnd, wavBuffer.length);
       if (success) {
         const segments = Array.isArray(result) ? result : [];
         const newEntry = { segments, timestamp: new Date() };
@@ -239,6 +278,16 @@ function App() {
     }
   };
 
+  // Listen for menu events from main process
+  useEffect(() => {
+    const handleShowMetrics = () => setShowMetricsModal(true);
+    window.electronAPI?.onShowMetrics?.(handleShowMetrics);
+
+    return () => {
+      window.electronAPI?.removeShowMetricsListener?.(handleShowMetrics);
+    };
+  }, []);
+
   return React.createElement('div', null,
     React.createElement('div', { className: 'top-row' },
       React.createElement('div', { className: 'control-panel' },
@@ -256,6 +305,18 @@ function App() {
       React.createElement('h2', null, 'Transcription Results'),
       React.createElement('div', { ref: transcriptScrollRef, style: { height: '500px', overflowY: 'auto' } },
         transcripts.map((entry, idx) => React.createElement(TranscriptEntry, { key: idx, entry: entry }))
+      )
+    ),
+    // Metrics Modal
+    showMetricsModal && React.createElement('div', { className: 'modal-overlay', onClick: () => setShowMetricsModal(false) },
+      React.createElement('div', { className: 'modal-content', onClick: (e) => e.stopPropagation() },
+        React.createElement('div', { className: 'modal-header' },
+          React.createElement('h2', null, 'Performance Metrics'),
+          React.createElement('button', { className: 'modal-close', onClick: () => setShowMetricsModal(false) }, '×')
+        ),
+        React.createElement('div', { className: 'modal-body' },
+          React.createElement(MetricsDisplay, { metrics: metricsSummary, onClearMetrics: clearMetrics })
+        )
       )
     )
   );
