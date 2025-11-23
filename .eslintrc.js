@@ -39,11 +39,11 @@ module.exports = {
     'no-undef': 'off', // Electron provides global objects
 
     // Allow specific patterns for this project
-    'no-restricted-globals': ['error', 'window', 'document'], // Allow these globals
+    'no-restricted-globals': 'off', // Allow window/document in renderer
   },
   settings: {
     react: {
-      version: 'detect'
+      version: '18.0'
     }
   },
   overrides: [

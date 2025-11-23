@@ -6,13 +6,8 @@ export function MetricsDisplay({ metrics, onClearMetrics }) {
     return `${(ms / 1000).toFixed(2)}s`;
   };
 
-  const formatBytes = (bytes) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
 
-  const MetricCard = ({ title, data, unit = 'ms', formatter = formatTime }) =>
+  const MetricCard = ({ title, data, formatter = formatTime }) =>
     React.createElement('div', { className: 'metric-card' },
       React.createElement('h4', null, title),
       React.createElement('div', { className: 'metric-stats' },

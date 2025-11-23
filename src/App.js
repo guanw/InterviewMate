@@ -59,7 +59,6 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [status, setStatus] = useState('Ready');
   const [transcripts, setTranscripts] = useState([]);
-  const [conversationBuffer, setConversationBuffer] = useState('');
   const [llmResponse, setLlmResponse] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [metricsSummary, setMetricsSummary] = useState(null);
@@ -100,16 +99,6 @@ function App() {
   };
 
   // Audio State (now using refs)
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if ((e.key === 's' || e.key === 'S') && !isRecording) startRecording();
-      if ((e.key === 'x' || e.key === 'X') && isRecording) stopRecording();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isRecording]);
 
   useEffect(() => {
     if (transcriptScrollRef.current) {
@@ -254,12 +243,10 @@ function App() {
         // Accumulate conversation buffer
         const newText = segments.filter(s => s.speech && s.speech.trim()).map(s => s.speech).join(' ');
         const maxLength = MAX_LENGTH;
-        setConversationBuffer(prev => {
-          const updated = prev + (prev ? ' ' : '') + newText;
-          const final = updated.length > maxLength ? updated.slice(-maxLength) : updated;
-          conversationBufferRef.current = final;
-          return final;
-        });
+        const currentBuffer = conversationBufferRef.current;
+        const updated = currentBuffer + (currentBuffer ? ' ' : '') + newText;
+        const final = updated.length > maxLength ? updated.slice(-maxLength) : updated;
+        conversationBufferRef.current = final;
         const concatenated_audio_text = segments.map((res) => res.speech || '').join('').toLowerCase();
         if (!concatenated_audio_text.includes('blank_audio')) {
           resetPauseTimer();
@@ -277,6 +264,17 @@ function App() {
       setStatus(`Transcription Error: ${error.message}`);
     }
   };
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if ((e.key === 's' || e.key === 'S') && !isRecording) startRecording();
+      if ((e.key === 'x' || e.key === 'X') && isRecording) stopRecording();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isRecording]);
 
   // Listen for menu events from main process
   useEffect(() => {
