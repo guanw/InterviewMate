@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, desktopCapturer } = require('electron');
 const { whisper } = require('whisper-node');
 const OpenAI = require('openai');
 const path = require('path');
@@ -139,11 +139,16 @@ ipcMain.handle('client-test', async () => {
     return "hello this is server";
 });
 
-ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
+ipcMain.handle('analyze-conversation', async (_, { conversationBuffer, visualContext }) => {
     console.log('Received conversationBuffer:', conversationBuffer);
-    console.log('Type:', typeof conversationBuffer);
+    console.log('Visual context provided:', !!visualContext);
     try {
-        const prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
+        let prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
+
+        if (visualContext) {
+            prompt += `\n\nAdditional Context (from screen capture):\n${visualContext}\n\nPlease consider both the spoken conversation and the visual context when providing your analysis.`;
+        }
+
         const completion = await llm.chat.completions.create({
             model: 'qwen3-max-2025-09-23',
             messages: [{ role: 'user', content: prompt }],
@@ -152,6 +157,33 @@ ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
         return { success: true, response: completion.choices[0].message.content };
     } catch (error) {
         console.error('LLM error:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('capture-screen', async () => {
+    try {
+        console.log('Capturing screen...');
+        const sources = await desktopCapturer.getSources({
+            types: ['screen'],
+            thumbnailSize: { width: 1920, height: 1080 }
+        });
+
+        if (sources.length === 0) {
+            throw new Error('No screen sources available');
+        }
+
+        // Use the first screen (primary display)
+        const primaryScreen = sources[0];
+        const thumbnail = primaryScreen.thumbnail;
+
+        // Convert to base64 for transfer to renderer
+        const imageData = thumbnail.toPNG();
+        const base64Image = imageData.toString('base64');
+
+        return { success: true, imageData: base64Image };
+    } catch (error) {
+        console.error('Screen capture error:', error);
         return { success: false, error: error.message };
     }
 });
