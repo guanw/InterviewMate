@@ -54,11 +54,11 @@ app.whenReady().then(() => {
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
+        { label: 'Hide', accelerator: 'Cmd+H', role: 'hide' },
+        { label: 'Hide Others', accelerator: 'Cmd+Shift+H', role: 'hideOthers' },
+        { label: 'Show All', role: 'unhide' },
         { type: 'separator' },
-        { role: 'quit' }
+        { label: 'Quit', accelerator: 'Cmd+Q', role: 'quit' }
       ]
     }] : []),
     {
@@ -72,22 +72,22 @@ app.whenReady().then(() => {
           }
         },
         { type: 'separator' },
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
+        { label: 'Reload', accelerator: 'CmdOrCtrl+R', role: 'reload' },
+        { label: 'Force Reload', accelerator: 'CmdOrCtrl+Shift+R', role: 'forceReload' },
+        { label: 'Toggle Developer Tools', accelerator: 'CmdOrCtrl+Shift+I', role: 'toggleDevTools' },
         { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
+        { label: 'Actual Size', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
+        { label: 'Zoom In', accelerator: 'CmdOrCtrl+=', role: 'zoomIn' },
+        { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
         { type: 'separator' },
-        { role: 'togglefullscreen' }
+        { label: 'Toggle Full Screen', accelerator: process.platform === 'darwin' ? 'Cmd+Ctrl+F' : 'F11', role: 'togglefullscreen' }
       ]
     },
     {
       label: 'Window',
       submenu: [
-        { role: 'minimize' },
-        { role: 'close' }
+        { label: 'Minimize', accelerator: 'CmdOrCtrl+M', role: 'minimize' },
+        { label: 'Close', accelerator: 'CmdOrCtrl+W', role: 'close' }
       ]
     }
   ];
