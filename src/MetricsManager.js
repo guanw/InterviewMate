@@ -1,3 +1,9 @@
+// For now, use console logging since Logging.js uses CommonJS which doesn't work in browser
+// eslint-disable-next-line no-console
+const info = console.log;
+// eslint-disable-next-line no-console
+const perfLog = console.log;
+
 export class MetricsManager {
   constructor(maxEntries = 50) {
     this.maxEntries = maxEntries;
@@ -18,7 +24,7 @@ export class MetricsManager {
   // Start timing for a recording session
   startRecordingSession() {
     this.currentSession.recordingStartTime = performance.now();
-    console.log('Started recording session metrics tracking');
+    info('Started recording session metrics tracking');
   }
 
   // End timing for a recording session
@@ -42,7 +48,7 @@ export class MetricsManager {
       this.metrics.audioProcessing.shift();
     }
 
-    console.log(`Audio processing: ${duration.toFixed(2)}ms for ${chunkSize} bytes`);
+    perfLog('Audio processing', duration.toFixed(2), 'ms');
   }
 
   // Track transcription time
@@ -74,7 +80,7 @@ export class MetricsManager {
     }
 
     this.currentSession.lastTranscriptionTime = endTime;
-    console.log(`Transcription: ${duration.toFixed(2)}ms for ${audioSize} bytes`);
+    perfLog('Transcription', duration.toFixed(2), 'ms');
   }
 
   // Track LLM analysis time
@@ -106,7 +112,7 @@ export class MetricsManager {
     }
 
     this.currentSession.lastLLMTime = endTime;
-    console.log(`LLM Analysis: ${duration.toFixed(2)}ms for ${bufferLength} chars`);
+    perfLog('LLM Analysis', duration.toFixed(2), 'ms');
   }
 
   // Get current metrics summary
@@ -148,6 +154,6 @@ export class MetricsManager {
       this.metrics[key] = [];
     });
     this.endRecordingSession();
-    console.log('Metrics cleared');
+    info('Metrics cleared');
   }
 }

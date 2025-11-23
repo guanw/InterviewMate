@@ -6,6 +6,12 @@ const fs = require('fs');
 const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Import centralized logging
+const loggerModule = require('./src/Logging.js');
+const logger = loggerModule.logger;
+const info = logger.info.bind(logger);
+const logError = logger.error.bind(logger);
+
 // Enable hot reloading in development
 if (process.env.NODE_ENV !== 'production') {
   try {
@@ -14,11 +20,11 @@ if (process.env.NODE_ENV !== 'production') {
       hardResetMethod: 'exit'
     });
   } catch (err) {
-    console.log('electron-reload not found, running without hot reload');
+    info('electron-reload not found, running without hot reload');
   }
 }
 
-console.log('process.env.DASHSCOPE_API_KEY: ', process.env.DASHSCOPE_API_KEY)
+info('process.env.DASHSCOPE_API_KEY: ', process.env.DASHSCOPE_API_KEY)
 const llm = new OpenAI({
     apiKey: process.env.DASHSCOPE_API_KEY,
     baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
@@ -109,7 +115,7 @@ app.whenReady().then(() => {
 });
 
 ipcMain.handle('transcribe-audio', async (_, audioBuffer) => {
-  console.log('ipc-main: transcribe-audio');
+  info('ipc-main: transcribe-audio');
   const tempDir = os.tmpdir();
   const tempFilePath = path.join(tempDir, `whisper_temp_${Date.now()}.wav`);
 
@@ -133,7 +139,7 @@ ipcMain.handle('transcribe-audio', async (_, audioBuffer) => {
 
     return { success: true, result };
   } catch (error) {
-    console.error('Transcription error:', error);
+    logError('Transcription error:', error);
     return { success: false, error: error.message };
   } finally {
     // Clean up temp file
@@ -152,8 +158,8 @@ ipcMain.handle('client-test', async () => {
 });
 
 ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
-    console.log('Received conversationBuffer:', conversationBuffer);
-    console.log('Type:', typeof conversationBuffer);
+    info('Received conversationBuffer:', conversationBuffer);
+    info('Type:', typeof conversationBuffer);
     try {
         const prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
         const completion = await llm.chat.completions.create({
@@ -163,7 +169,7 @@ ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
         });
         return { success: true, response: completion.choices[0].message.content };
     } catch (error) {
-        console.error('LLM error:', error);
+        logError('LLM error:', error);
         return { success: false, error: error.message };
     }
 });

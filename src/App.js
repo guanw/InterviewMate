@@ -4,6 +4,12 @@ import { TranscriptEntry } from './TranscriptEntry.js';
 import { MetricsManager } from './MetricsManager.js';
 import { MetricsDisplay } from './MetricsDisplay.js';
 
+// Temporary fallback to console until logging module is browser-compatible
+// eslint-disable-next-line no-console
+const logError = console.error;
+// eslint-disable-next-line no-console
+const info = console.log;
+
 const { useState, useEffect, useRef } = React;
 
 
@@ -20,7 +26,7 @@ function mergeFloat32Arrays(arrays) {
 }
 
 function convertToWav(input, sampleRate, channels, bitDepth) {
-  console.log("start: convertToWav");
+  info("start: convertToWav");
   const bytesPerSample = bitDepth / 8;
   const blockAlign = channels * bytesPerSample;
   const buffer = new ArrayBuffer(44 + input.length * bytesPerSample);
@@ -44,7 +50,7 @@ function convertToWav(input, sampleRate, channels, bitDepth) {
     const intSample = sample < 0 ? sample * scale : sample * (scale - 1);
     view.setInt16(44 + (i * 2), intSample, true);
   }
-  console.log("end: convertToWav");
+  info("end: convertToWav");
   return new Uint8Array(buffer);
 }
 
@@ -75,8 +81,8 @@ function App() {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     pauseTimerRef.current = setTimeout(async () => {
       const currentBuffer = conversationBufferRef.current;
-      console.log('Pause detected, triggering LLM with buffer:', currentBuffer);
-      console.log('Buffer length:', currentBuffer ? currentBuffer.length : 'null/undefined');
+      info('Pause detected, triggering LLM with buffer:', currentBuffer);
+      info('Buffer length:', currentBuffer ? currentBuffer.length : 'null/undefined');
       setIsAnalyzing(true);
       try {
         const llmStart = performance.now();
@@ -87,11 +93,11 @@ function App() {
         if (success) {
           setLlmResponse(response);
         } else {
-          console.error('LLM error:', error);
+          logError('LLM error:', error);
           setLlmResponse(`Error: ${error}`);
         }
       } catch (err) {
-        console.error('LLM call failed:', err);
+        logError('LLM call failed:', err);
         setLlmResponse('Failed to analyze conversation');
       }
       setIsAnalyzing(false);
@@ -125,7 +131,7 @@ function App() {
   };
 
   const startRecording = async () => {
-    console.log("start: startRecording");
+    info("start: startRecording");
     try {
       setStatus('Initializing microphone...');
 
@@ -177,16 +183,15 @@ function App() {
       setIsRecording(true);
       setStatus('Recording...');
     } catch (error) {
-      console.log("error: startRecording");
-      console.error("Audio error:", error);
+      logError("Audio error:", error);
       setStatus(`Error: ${error.message}`);
     }
-    console.log("end: startRecording");
+    info("end: startRecording");
   };
 
   const stopRecording = () => {
     if (!isRecording) return;
-    console.log("Stopping recording...");
+    info("Stopping recording...");
     audioManagerRef.current.setIsRecording(false);
     setIsRecording(false);
     setStatus('Stopping...');
@@ -213,12 +218,12 @@ function App() {
   };
 
   const processAudioChunk = async () => {
-    console.log("start: processAudioChunk");
+    info("start: processAudioChunk");
     const audioProcessingStart = performance.now();
 
     // Don't process if recording has been stopped
     if (!audioManagerRef.current.getIsRecording()) {
-      console.log("Recording stopped, skipping audio chunk processing");
+      info("Recording stopped, skipping audio chunk processing");
       return;
     }
     const chunks = audioManagerRef.current.getAudioChunks();
@@ -254,13 +259,13 @@ function App() {
         if (audioManagerRef.current.getIsRecording()) {
           setStatus('Recording...');
         }
-        console.log("success: processAudioChunk");
+        info("success: processAudioChunk");
       } else {
-        console.log("error: processAudioChunk --", error);
+        logError("error: processAudioChunk --", error);
         throw new Error(error);
       }
     } catch (error) {
-      console.error("Transcription error: processAudioChunk --", error);
+      logError("Transcription error: processAudioChunk --", error);
       setStatus(`Transcription Error: ${error.message}`);
     }
   };
