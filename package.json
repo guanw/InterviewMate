@@ -17,8 +17,8 @@
     "express": "^5.1.0"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^16.6.1",
-    "electron-vosk-speech": "^0.2.1",
     "openai": "^6.9.1",
     "whisper-node": "^1.1.1"
   }

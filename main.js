@@ -6,11 +6,18 @@ const fs = require('fs');
 const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-// Import centralized logging
-const loggerModule = require('./src/Logging.js');
-const logger = loggerModule.logger;
-const info = logger.info.bind(logger);
-const logError = logger.error.bind(logger);
+// Import local server
+const LocalServer = require('./src/LocalServer.js');
+
+// Import centralized logging (temporarily disabled for debugging)
+// const loggerModule = require('./src/Logging.js');
+// const logger = loggerModule.logger;
+// const info = logger.info.bind(logger);
+// const logError = logger.error.bind(logger);
+
+// Temporary logging functions
+const info = console.log;
+const logError = console.error;
 
 // Enable hot reloading in development
 if (process.env.NODE_ENV !== 'production') {
@@ -31,6 +38,7 @@ const llm = new OpenAI({
 });
 
 let mainWindow;
+let localServer;
 
 app.whenReady().then(() => {
   mainWindow = new BrowserWindow({
@@ -49,6 +57,18 @@ app.whenReady().then(() => {
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.loadFile('index.html');
+
+  // Initialize and start the local server
+  try {
+    localServer = new LocalServer(ipcMain);
+    localServer.start(mainWindow).then(() => {
+      info('Local server started successfully');
+    }).catch((error) => {
+      logError('Failed to start local server:', error);
+    });
+  } catch (error) {
+    logError('Error initializing local server:', error);
+  }
 
   // Create application menu
   const template = [
@@ -150,7 +170,20 @@ ipcMain.handle('transcribe-audio', async (_, audioBuffer) => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    // Stop the local server before quitting
+    if (localServer) {
+      localServer.stop();
+    }
+    app.quit();
+  }
+});
+
+// Stop server when app is quitting
+app.on('will-quit', () => {
+  if (localServer) {
+    localServer.stop();
+  }
 });
 
 ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
@@ -166,6 +199,38 @@ ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
         return { success: true, response: completion.choices[0].message.content };
     } catch (error) {
         logError('LLM error:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// IPC handlers for local server communication
+ipcMain.handle('get-server-status', async () => {
+    if (localServer) {
+        return {
+            success: true,
+            status: localServer.getStatus()
+        };
+    } else {
+        return {
+            success: false,
+            error: 'Server not initialized'
+        };
+    }
+});
+
+ipcMain.handle('restart-server', async () => {
+    try {
+        if (localServer) {
+            localServer.stop();
+            await localServer.start(mainWindow);
+            return { success: true, message: 'Server restarted successfully' };
+        } else {
+            localServer = new LocalServer(ipcMain);
+            await localServer.start(mainWindow);
+            return { success: true, message: 'Server started successfully' };
+        }
+    } catch (error) {
+        logError('Error restarting server:', error);
         return { success: false, error: error.message };
     }
 });
