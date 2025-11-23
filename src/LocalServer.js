@@ -54,7 +54,6 @@ class LocalServer {
         console.log(`🚀 Interview Extractor Server running on port ${this.PORT}`);
         console.log(`📊 Health check: http://localhost:${this.PORT}/api/health`);
         console.log(`📥 Data endpoint: http://localhost:${this.PORT}/api/interview-question-data`);
-        console.log(`⚙️  Config: http://localhost:${this.PORT}/api/config`);
         console.log('Waiting for data from Chrome extension...\n');
         this.isRunning = true;
       });
@@ -145,7 +144,6 @@ class LocalServer {
       endpoints: {
         health: `http://localhost:${this.PORT}/api/health`,
         data: `http://localhost:${this.PORT}/api/interview-question-data`,
-        config: `http://localhost:${this.PORT}/api/config`
       }
     };
   }
