@@ -153,10 +153,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('client-test', async () => {
-    return "hello this is server";
-});
-
 ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
     info('Received conversationBuffer:', conversationBuffer);
     info('Type:', typeof conversationBuffer);
