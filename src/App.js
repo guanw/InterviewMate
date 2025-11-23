@@ -3,6 +3,7 @@ import { AudioManager } from './AudioManager.js';
 import { TranscriptEntry } from './TranscriptEntry.js';
 import { MetricsManager } from './MetricsManager.js';
 import { MetricsDisplay } from './MetricsDisplay.js';
+import { OCRProcessor } from './OCRProcessor.js';
 
 const { useState, useEffect, useRef } = React;
 
@@ -63,6 +64,8 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [metricsSummary, setMetricsSummary] = useState(null);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [visualContext, setVisualContext] = useState('');
+  const [isProcessingScreen, setIsProcessingScreen] = useState(false);
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
@@ -70,22 +73,29 @@ function App() {
   const transcriptScrollRef = useRef(null); // Scroll container ref
   const audioManagerRef = useRef(new AudioManager()); // Encapsulates audio-related state
   const metricsManagerRef = useRef(new MetricsManager()); // Performance metrics tracking
+  const ocrProcessorRef = useRef(new OCRProcessor()); // OCR processing for screen captures
 
   const resetPauseTimer = () => {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     pauseTimerRef.current = setTimeout(async () => {
       const currentBuffer = conversationBufferRef.current;
+      const currentVisualContext = visualContext;
       console.log('Pause detected, triggering LLM with buffer:', currentBuffer);
-      console.log('Buffer length:', currentBuffer ? currentBuffer.length : 'null/undefined');
+      console.log('Visual context available:', !!currentVisualContext);
       setIsAnalyzing(true);
       try {
         const llmStart = performance.now();
-        const { success, response, error } = await window.electronAPI.analyzeConversation(currentBuffer);
+        const { success, response, error } = await window.electronAPI.analyzeConversation({
+          conversationBuffer: currentBuffer,
+          visualContext: currentVisualContext
+        });
         const llmEnd = performance.now();
         metricsManagerRef.current.trackLLMAnalysis(llmStart, llmEnd, currentBuffer.length);
 
         if (success) {
           setLlmResponse(response);
+          // Clear visual context after successful analysis
+          setVisualContext('');
         } else {
           console.error('LLM error:', error);
           setLlmResponse(`Error: ${error}`);
@@ -122,6 +132,44 @@ function App() {
   const clearMetrics = () => {
     metricsManagerRef.current.clearMetrics();
     setMetricsSummary(null);
+  };
+
+  // Function to capture screen and extract text
+  const captureScreen = async () => {
+    if (isProcessingScreen) return;
+
+    try {
+      setIsProcessingScreen(true);
+      setStatus('Capturing screen...');
+
+      // Capture screenshot
+      const { success, imageData, error } = await window.electronAPI.captureScreen();
+      if (!success) {
+        throw new Error(error);
+      }
+
+      setStatus('Processing image...');
+
+      // Convert base64 to blob for OCR processing
+      const imageBlob = new Blob([Uint8Array.from(atob(imageData), c => c.charCodeAt(0))], { type: 'image/png' });
+
+      // Process with OCR
+      const extractedText = await ocrProcessorRef.current.processImage(imageBlob);
+
+      if (extractedText.trim()) {
+        setVisualContext(extractedText);
+        setStatus('Screen captured and processed');
+        console.log('Visual context captured:', extractedText.substring(0, 100) + '...');
+      } else {
+        setStatus('No text found in screen capture');
+      }
+
+    } catch (error) {
+      console.error('Screen capture error:', error);
+      setStatus(`Screen capture error: ${error.message}`);
+    } finally {
+      setIsProcessingScreen(false);
+    }
   };
 
   const startRecording = async () => {
@@ -289,9 +337,16 @@ function App() {
   return React.createElement('div', null,
     React.createElement('div', { className: 'top-row' },
       React.createElement('div', { className: 'control-panel' },
-        React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn', style: { marginBottom: '10px' } }, 'Start Recording'),
-        React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
+        React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn', style: { marginBottom: '10px', width: '180px' } }, 'Start Recording'),
+        React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn', style: { width: '180px' } }, 'Stop Recording'),
+        React.createElement('button', {
+          onClick: captureScreen,
+          disabled: isProcessingScreen || !isRecording,
+          className: isProcessingScreen ? 'capture-btn disabled' : 'capture-btn',
+          style: { marginBottom: '10px', marginTop: '10px', width: '180px' }
+        }, isProcessingScreen ? 'Processing...' : 'Capture Screen'),
         React.createElement('div', { className: 'status' }, status),
+        visualContext && React.createElement('div', { className: 'visual-indicator', style: { color: '#4CAF50', fontSize: '12px', marginTop: '5px' } }, '📸 Visual context captured'),
         React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop')
       ),
       React.createElement('div', { className: 'llm-container' },

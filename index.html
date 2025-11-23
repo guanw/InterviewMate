@@ -57,6 +57,17 @@
     .stop-btn:hover {
       background-color: #c0392b;
     }
+    .capture-btn {
+      background-color: #3498db;
+      color: white;
+    }
+    .capture-btn:hover {
+      background-color: #2980b9;
+    }
+    .capture-btn.disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
     .status {
       margin: 15px 0;
       padding: 10px;
@@ -257,6 +268,7 @@
   <div id="root"></div>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
   <script type="module" src="renderer.js"></script>
 </body>
 </html>

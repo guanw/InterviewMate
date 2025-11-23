@@ -4,7 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   test: () => ipcRenderer.invoke('client-test'),
   transcribeAudio: (audioBuffer) => ipcRenderer.invoke('transcribe-audio', audioBuffer),
-  analyzeConversation: (conversationBuffer) => ipcRenderer.invoke('analyze-conversation', conversationBuffer),
+  analyzeConversation: (data) => ipcRenderer.invoke('analyze-conversation', data),
+  captureScreen: () => ipcRenderer.invoke('capture-screen'),
 
   // Metrics modal handling
   onShowMetrics: (callback) => {
