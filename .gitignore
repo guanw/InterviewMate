@@ -4,3 +4,4 @@
 .vscode/**
 ./vosk_wip/**
 .env
+debug_temp/**
