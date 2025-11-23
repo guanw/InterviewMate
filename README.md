@@ -37,8 +37,6 @@ An Electron application that provides real-time audio transcription using OpenAI
 
    This downloads the required Whisper model files for offline transcription.
 
-   **Note**: If ESLint is not found after installation, you may need to install it globally or ensure your Node.js/npm setup is correct.
-
 4. Create a `.env` file in the root directory with your DashScope API key:
 
    ```
@@ -84,8 +82,6 @@ An Electron application that provides real-time audio transcription using OpenAI
 - `main.js`: Electron main process
 - `preload.js`: IPC bridge
 - `index.html`: Main UI template
-- `.eslintrc.js`: ESLint configuration
-- `.eslintignore`: Files to ignore during linting
 
 ### Code Quality
 
@@ -103,35 +99,3 @@ Run `npm run lint` before committing to ensure code quality.
 - Ensure microphone permissions are granted.
 - Check that the API key is correctly set in `.env`.
 - For audio issues, verify Web Audio API support in your browser.
-
-### ESLint Issues
-
-If you encounter `eslint: command not found`:
-
-1. **Install dependencies**:
-
-   ```bash
-   npm install
-   ```
-
-2. **Check Node.js/npm installation**:
-
-   ```bash
-   node --version
-   npm --version
-   ```
-
-3. **Install ESLint globally** (optional):
-
-   ```bash
-   npm install -g eslint
-   ```
-
-4. **Verify package.json** contains ESLint dependencies:
-   ```json
-   "devDependencies": {
-     "eslint": "^8.57.0",
-     "eslint-plugin-react": "^7.33.2",
-     "eslint-plugin-react-hooks": "^4.6.0"
-   }
-   ```
