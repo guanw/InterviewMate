@@ -5,3 +5,4 @@
 ./vosk_wip/**
 .env
 debug_temp/**
+extracted-data/**
