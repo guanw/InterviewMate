@@ -69,6 +69,8 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [metricsSummary, setMetricsSummary] = useState(null);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(null); // Track extracted interview question
+  const [analysisType, setAnalysisType] = useState(null); // Track what type of analysis was performed
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
@@ -86,15 +88,17 @@ function App() {
       setIsAnalyzing(true);
       try {
         const llmStart = performance.now();
-        const { success, response, error } = await window.electronAPI.analyzeConversation(currentBuffer);
+        const { success, response, error, analysisType: returnedAnalysisType } = await window.electronAPI.analyzeConversation(currentBuffer);
         const llmEnd = performance.now();
         metricsManagerRef.current.trackLLMAnalysis(llmStart, llmEnd, currentBuffer.length);
 
         if (success) {
           setLlmResponse(response);
+          setAnalysisType(returnedAnalysisType);
         } else {
           logError('LLM error:', error);
           setLlmResponse(`Error: ${error}`);
+          setAnalysisType(null);
         }
       } catch (err) {
         logError('LLM call failed:', err);
@@ -291,16 +295,160 @@ function App() {
     };
   }, []);
 
+  // Listen for interview question data from extension
+  useEffect(() => {
+    info('🔧 Setting up interview question listener...');
+
+    const handleInterviewQuestionReceived = (event, data) => {
+      info('📥 EVENT FIRED: Received interview question data from extension:', data);
+      info('📥 Event type:', event.type);
+      info('📥 Data structure:', Object.keys(data || {}));
+
+      if (data?.data?.problem) {
+        setCurrentQuestion(data.data.problem);
+        info('🎯 New question available for analysis:', data.data.problem.title);
+      } else {
+        info('⚠️ No problem data found in received payload');
+        info('📋 Full data structure:', JSON.stringify(data, null, 2));
+      }
+    };
+
+    // Verify the API exists before setting up listener
+    if (window.electronAPI?.onInterviewQuestionReceived) {
+      info('✅ Interview question API found, setting up listener...');
+      window.electronAPI.onInterviewQuestionReceived(handleInterviewQuestionReceived);
+      info('✅ Interview question listener setup complete');
+    } else {
+      info('❌ Interview question API not available!');
+    }
+
+    // Cleanup function - this runs on unmount
+    return () => {
+      info('🧹 Cleaning up interview question listener...');
+      if (window.electronAPI?.removeInterviewQuestionReceivedListener) {
+        window.electronAPI.removeInterviewQuestionReceivedListener(handleInterviewQuestionReceived);
+      }
+    };
+  }, []); // Empty array is correct here - we only want to set up the listener once
+
   return React.createElement('div', null,
     React.createElement('div', { className: 'top-row' },
       React.createElement('div', { className: 'control-panel' },
         React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn', style: { marginBottom: '10px' } }, 'Start Recording'),
         React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
         React.createElement('div', { className: 'status' }, status),
-        React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop')
+        React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop'),
+        // Test button for interview data
+        React.createElement('button', {
+          onClick: () => {
+            // Simulate receiving interview data for testing
+            const testData = {
+              type: 'interview-question-question',
+              timestamp: new Date().toISOString(),
+              extensionId: 'test-extension',
+              data: {
+                problem: {
+                  title: 'Two Sum',
+                  difficulty: 'Easy',
+                  tags: ['Array', 'Hash Table'],
+                  description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.'
+                }
+              }
+            };
+            info('🧪 Test: Simulating interview data reception...');
+            // This would normally be triggered by the actual event system
+            setCurrentQuestion(testData.data.problem);
+            info('🎯 Test: Question set manually:', testData.data.problem.title);
+          },
+          style: {
+            marginTop: '10px',
+            padding: '5px 10px',
+            background: '#6c757d',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            fontSize: '12px',
+            cursor: 'pointer'
+          }
+        }, '🧪 Test Question')
       ),
       React.createElement('div', { className: 'llm-container' },
         React.createElement('h2', null, 'AI Analysis'),
+        // Current question info or guidance
+        currentQuestion ? React.createElement('div', {
+          style: {
+            background: '#e8f5e8',
+            padding: '10px',
+            borderRadius: '4px',
+            marginBottom: '10px',
+            border: '1px solid #c3e6c3',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }
+        },
+          React.createElement('div', null,
+            React.createElement('strong', null, '📋 Current Question: '),
+            React.createElement('span', null, currentQuestion.title || 'Unknown title'),
+            currentQuestion.difficulty && React.createElement('span', {
+              style: {
+                marginLeft: '10px',
+                padding: '2px 6px',
+                background: '#007bff',
+                color: 'white',
+                borderRadius: '3px',
+                fontSize: '12px'
+              }
+            }, currentQuestion.difficulty)
+          ),
+          React.createElement('button', {
+            onClick: async () => {
+              try {
+                await window.electronAPI.clearInterviewData();
+                setCurrentQuestion(null);
+                info('🧹 Current question cleared by user');
+              } catch (error) {
+                logError('Error clearing interview data:', error);
+              }
+            },
+            style: {
+              background: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '3px',
+              padding: '4px 8px',
+              fontSize: '12px',
+              cursor: 'pointer'
+            }
+          }, 'Clear')
+        ) : conversationBufferRef.current && conversationBufferRef.current.trim() && React.createElement('div', {
+          style: {
+            background: '#fff3cd',
+            padding: '10px',
+            borderRadius: '4px',
+            marginBottom: '10px',
+            border: '1px solid #ffeaa7'
+          }
+        },
+          React.createElement('strong', null, '💡 Tip: '),
+          'Extract a question from the Chrome extension to get priority analysis. ',
+          React.createElement('span', { style: { fontSize: '12px', color: '#666' } },
+            'Current analysis is based on conversation only.'
+          )
+        ),
+        // Analysis type indicator
+        analysisType && React.createElement('div', {
+          style: {
+            fontSize: '12px',
+            color: '#666',
+            marginBottom: '8px',
+            fontStyle: 'italic'
+          }
+        },
+          analysisType === 'interview-metadata-priority' ?
+            '🎯 Analysis based on extracted interview question + conversation context' :
+            '💬 Analysis based on conversation only'
+        ),
         isAnalyzing ? React.createElement('p', null, 'Analyzing conversation...') : React.createElement('pre', { className: 'llm-response' }, llmResponse || 'No analysis yet')
       )
     ),

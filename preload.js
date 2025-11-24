@@ -21,7 +21,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onInterviewQuestionReceived: (callback) => {
     ipcRenderer.on('interview-question-received', callback);
   },
-  removeInterviewQuestionListener: (callback) => {
+  removeInterviewQuestionReceivedListener: (callback) => {
     ipcRenderer.removeListener('interview-question-received', callback);
-  }
+  },
+
+  // Clear interview data
+  clearInterviewData: () => ipcRenderer.invoke('clear-interview-data')
 });

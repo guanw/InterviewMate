@@ -47,7 +47,7 @@ app.whenReady().then(() => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      sandbox: true
+      sandbox: false
     }
   });
 
@@ -186,17 +186,89 @@ app.on('will-quit', () => {
   }
 });
 
-ipcMain.handle('analyze-conversation', async (_, conversationBuffer) => {
+ipcMain.handle('analyze-conversation', async (_, conversationBuffer, forceNewAnalysis = false) => {
     info('Received conversationBuffer:', conversationBuffer);
     info('Type:', typeof conversationBuffer);
+    info('Force new analysis:', forceNewAnalysis);
+
     try {
-        const prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
+        // Get current interview data from LocalServer
+        const interviewData = localServer ? localServer.getCurrentInterviewData() : null;
+        const hasInterviewData = interviewData && localServer.hasInterviewData();
+
+        info('Interview data available:', !!hasInterviewData);
+        if (hasInterviewData) {
+            info('Current interview question:', interviewData.problem?.title || 'Unknown title');
+        }
+
+        let prompt = '';
+
+        if (hasInterviewData) {
+            // Priority 1: Analyze extracted interview question
+            info('🎯 Prioritizing extracted interview metadata for analysis');
+
+            const problemTitle = interviewData.problem?.title || 'Unknown problem';
+            const problemDifficulty = interviewData.problem?.difficulty || 'Unknown difficulty';
+            const problemTags = interviewData.problem?.tags?.join(', ') || 'No tags';
+            const problemDescription = interviewData.problem?.description || 'No description available';
+
+            // Extract code if available
+            let codeInfo = 'No code provided';
+            if (interviewData.code) {
+                const codeData = interviewData.code.monaco || interviewData.code.codemirror || interviewData.code.textarea;
+                if (codeData && codeData.content) {
+                    codeInfo = `Language: ${codeData.language}\nCode:\n${codeData.content}`;
+                }
+            }
+
+            prompt = `You are a senior technical interviewer helping with a coding problem.
+
+**PRIMARY QUESTION TO ANALYZE:**
+Title: ${problemTitle}
+Difficulty: ${problemDifficulty}
+Tags: ${problemTags}
+Description: ${problemDescription}
+
+${codeInfo !== 'No code provided' ? `**STARTING CODE:**\n${codeInfo}` : ''}
+
+${conversationBuffer && conversationBuffer.trim() ? `**FOLLOW-UP CONTEXT FROM CONVERSATION:**\n${conversationBuffer}` : ''}
+
+**ANALYSIS REQUIREMENTS:**
+1. First, provide a detailed solution to the primary question with:
+   - Clear explanation of the approach
+   - Step-by-step algorithm
+   - Time and space complexity analysis
+   - Complete, working code solution
+   - Test cases and edge cases
+
+2. If there's follow-up conversation context, address any additional questions or clarifications mentioned
+
+3. If the conversation contains follow-up questions about the main problem, answer those as well
+
+Provide a comprehensive technical interview response.`;
+
+        } else {
+            // Fallback: Original conversationBuffer-only analysis
+            info('🔄 Using conversationBuffer-only analysis (no extracted interview data)');
+            prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
+        }
+
+        info('Sending prompt to LLM...');
         const completion = await llm.chat.completions.create({
             model: 'qwen3-max-2025-09-23',
             messages: [{ role: 'user', content: prompt }],
             stream: false
         });
-        return { success: true, response: completion.choices[0].message.content };
+
+        const response = completion.choices[0].message.content;
+        info('LLM analysis completed successfully');
+
+        return {
+            success: true,
+            response,
+            analysisType: hasInterviewData ? 'interview-metadata-priority' : 'conversation-buffer-only'
+        };
+
     } catch (error) {
         logError('LLM error:', error);
         return { success: false, error: error.message };
@@ -231,6 +303,20 @@ ipcMain.handle('restart-server', async () => {
         }
     } catch (error) {
         logError('Error restarting server:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('clear-interview-data', async () => {
+    try {
+        if (localServer) {
+            localServer.clearCurrentInterviewData();
+            return { success: true, message: 'Interview data cleared successfully' };
+        } else {
+            return { success: false, error: 'Local server not available' };
+        }
+    } catch (error) {
+        logError('Error clearing interview data:', error);
         return { success: false, error: error.message };
     }
 });

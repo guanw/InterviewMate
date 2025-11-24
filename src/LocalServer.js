@@ -12,6 +12,7 @@ class LocalServer {
     this.mainWindow = null;
     this.isRunning = false;
     this.PORT = 8080;
+    this.currentInterviewData = null; // Store current extracted interview metadata
   }
 
   async start(mainWindow) {
@@ -71,6 +72,13 @@ class LocalServer {
       console.log('Extension ID:', data.extensionId);
       console.log('URL:', data.data?.url);
 
+      // Store the interview data in memory for analysis
+      this.currentInterviewData = {
+        ...data.data,
+        receivedAt: data.timestamp,
+        extensionId: data.extensionId
+      };
+
       if (data.data?.problem) {
         console.log('\n--- Problem Information ---');
         console.log('Title:', data.data.problem.title);
@@ -90,17 +98,24 @@ class LocalServer {
         console.log('Language:', codeData.language || 'unknown');
       }
 
-      // Process the data
+      console.log('\n💾 Interview data stored in memory for analysis');
+      console.log('🎯 New question available for analysis via conversationBuffer');
+
+      // Process the data (save to file)
       this.processExtractedData(data.data);
 
       // Send to renderer via IPC
       if (this.mainWindow) {
+        console.log('📤 Sending IPC event to renderer: interview-question-received');
         this.mainWindow.webContents.send('interview-question-received', {
           type: 'interview-question-question',
           timestamp: data.timestamp,
           extensionId: data.extensionId,
           data: data.data
         });
+        console.log('✅ IPC event sent successfully');
+      } else {
+        console.log('❌ Main window not available for IPC');
       }
 
     } catch (error) {
@@ -146,6 +161,22 @@ class LocalServer {
         data: `http://localhost:${this.PORT}/api/interview-question-data`,
       }
     };
+  }
+
+  // Get current interview data for analysis
+  getCurrentInterviewData() {
+    return this.currentInterviewData;
+  }
+
+  // Clear current interview data (when user extracts new question)
+  clearCurrentInterviewData() {
+    console.log('🧹 Clearing current interview data from memory');
+    this.currentInterviewData = null;
+  }
+
+  // Check if interview data is available
+  hasInterviewData() {
+    return this.currentInterviewData !== null;
   }
 }
 
