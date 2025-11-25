@@ -217,7 +217,7 @@ ipcMain.handle('analyze-conversation', async (_, conversationBuffer, forceNewAna
             if (interviewData.code) {
                 const codeData = interviewData.code.monaco || interviewData.code.codemirror || interviewData.code.textarea;
                 if (codeData && codeData.content) {
-                    codeInfo = `Language: ${codeData.language}\nCode:\n${codeData.content}`;
+                    codeInfo = `Starting Code:\n${codeData.content}`;
                 }
             }
 
@@ -238,19 +238,19 @@ ${conversationBuffer && conversationBuffer.trim() ? `**FOLLOW-UP CONTEXT FROM CO
    - Clear explanation of the approach
    - Step-by-step algorithm
    - Time and space complexity analysis
-   - Complete, working code solution
+   - Complete, working PYTHON code solution
    - Test cases and edge cases
 
 2. If there's follow-up conversation context, address any additional questions or clarifications mentioned
 
 3. If the conversation contains follow-up questions about the main problem, answer those as well
 
-Provide a comprehensive technical interview response.`;
+IMPORTANT: Always provide code solutions in PYTHON, regardless of any starting code language detected.`;
 
         } else {
             // Fallback: Original conversationBuffer-only analysis
             info('🔄 Using conversationBuffer-only analysis (no extracted interview data)');
-            prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with code examples if applicable.\n\nConversation:\n${conversationBuffer}`;
+            prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with PYTHON code examples.\n\nConversation:\n${conversationBuffer}`;
         }
 
         info('Sending prompt to LLM...');
