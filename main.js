@@ -9,6 +9,9 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 // Import local server
 const LocalServer = require('./src/LocalServer.js');
 
+// Import VAD Manager
+const VADManager = require('./src/VADManager.js');
+
 // Import centralized logging (temporarily disabled for debugging)
 // const loggerModule = require('./src/Logging.js');
 // const logger = loggerModule.logger;
@@ -18,6 +21,9 @@ const LocalServer = require('./src/LocalServer.js');
 // Temporary logging functions
 const info = console.log;
 const logError = console.error;
+
+// Audio constants (matching src/Constants.js)
+const SAMPLE_RATE = 16000;
 
 // Enable hot reloading in development
 if (process.env.NODE_ENV !== 'production') {
@@ -39,6 +45,7 @@ const llm = new OpenAI({
 
 let mainWindow;
 let localServer;
+let vadManager;
 
 app.whenReady().then(() => {
   mainWindow = new BrowserWindow({
@@ -68,6 +75,14 @@ app.whenReady().then(() => {
     });
   } catch (error) {
     logError('Error initializing local server:', error);
+  }
+
+  // Initialize VAD Manager
+  try {
+    vadManager = new VADManager();
+    info('VAD Manager initialized');
+  } catch (error) {
+    logError('Error initializing VAD Manager:', error);
   }
 
   // Create application menu
@@ -308,15 +323,70 @@ ipcMain.handle('restart-server', async () => {
 });
 
 ipcMain.handle('clear-interview-data', async () => {
-    try {
-        if (localServer) {
-            localServer.clearCurrentInterviewData();
-            return { success: true, message: 'Interview data cleared successfully' };
-        } else {
-            return { success: false, error: 'Local server not available' };
-        }
-    } catch (error) {
-        logError('Error clearing interview data:', error);
-        return { success: false, error: error.message };
+  try {
+    if (localServer) {
+      localServer.clearCurrentInterviewData();
+      return { success: true, message: 'Interview data cleared successfully' };
+    } else {
+      return { success: false, error: 'Local server not available' };
     }
+  } catch (error) {
+    logError('Error clearing interview data:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// VAD-related IPC handlers
+ipcMain.handle('process-vad', async (_, audioBuffer) => {
+  try {
+    if (!vadManager) {
+      return { success: false, error: 'VAD Manager not initialized' };
+    }
+
+    // Convert buffer back to Float32Array
+    const audioData = new Float32Array(audioBuffer);
+    const result = await vadManager.processAudioChunk(audioData, SAMPLE_RATE);
+
+    return { success: true, result };
+  } catch (error) {
+    logError('VAD processing error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('should-skip-transcription', async () => {
+  try {
+    if (!vadManager) {
+      return false; // Default to not skipping if VAD not available
+    }
+
+    return vadManager.shouldSkipTranscription();
+  } catch (error) {
+    logError('VAD skip check error:', error);
+    return false; // Default to not skipping on error
+  }
+});
+
+ipcMain.handle('reset-vad', async () => {
+  try {
+    if (vadManager) {
+      vadManager.reset();
+    }
+    return { success: true };
+  } catch (error) {
+    logError('VAD reset error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-vad-stats', async () => {
+  try {
+    if (!vadManager) {
+      return null;
+    }
+    return vadManager.getStats();
+  } catch (error) {
+    logError('VAD stats error:', error);
+    return null;
+  }
 });

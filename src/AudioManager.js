@@ -7,6 +7,7 @@ export class AudioManager {
     this.microphone = null;
     this.workletNode = null;
     this.audioChunks = [];
+    this.vadManager = null; // Will be initialized when VAD is available
   }
 
   setIsRecording(value) { this.isRecording = value; }
@@ -32,4 +33,30 @@ export class AudioManager {
   getAudioChunks() { return this.audioChunks; }
   addAudioChunk(chunk) { this.audioChunks.push(chunk); }
   clearAudioChunks() { this.audioChunks = []; }
+
+  // VAD-related methods
+  setVADManager(vadManager) { this.vadManager = vadManager; }
+  getVADManager() { return this.vadManager; }
+
+  async processVAD(audioBuffer, sampleRate) {
+    if (this.vadManager) {
+      return await this.vadManager.processAudioChunk(audioBuffer, sampleRate);
+    }
+    // Return default if VAD not available
+    return { isSpeech: true, confidence: 0.5, speechProbability: 0.5 };
+  }
+
+  shouldSkipTranscription() {
+    return this.vadManager ? this.vadManager.shouldSkipTranscription() : false;
+  }
+
+  getVADStats() {
+    return this.vadManager ? this.vadManager.getStats() : null;
+  }
+
+  resetVAD() {
+    if (this.vadManager) {
+      this.vadManager.reset();
+    }
+  }
 }

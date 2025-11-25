@@ -1,8 +1,9 @@
-import { SAMPLE_RATE, CHANNELS, BIT_DEPTH, PAUSE_DELAY, MAX_LENGTH } from './Constants.js';
+import { SAMPLE_RATE, CHANNELS, BIT_DEPTH, PAUSE_DELAY, MAX_LENGTH, FILLER_WORDS } from './Constants.js';
 import { AudioManager } from './AudioManager.js';
 import { TranscriptEntry } from './TranscriptEntry.js';
 import { MetricsManager } from './MetricsManager.js';
 import { MetricsDisplay } from './MetricsDisplay.js';
+// VAD import will be handled in main process due to Electron renderer limitations
 
 // Temporary fallback to console until logging module is browser-compatible
 // eslint-disable-next-line no-console
@@ -134,10 +135,26 @@ function App() {
     setMetricsSummary(null);
   };
 
+  // Function to manually clear conversation buffer
+  const clearConversationBuffer = () => {
+    info('🧹 User manually clearing conversation buffer (keeping current question)');
+    conversationBufferRef.current = '';
+    setLlmResponse('Conversation buffer cleared. Ready for follow-up questions.');
+    setAnalysisType(null);
+  };
+
   const startRecording = async () => {
     info("start: startRecording");
     try {
       setStatus('Initializing microphone...');
+
+      // Reset VAD for new recording session
+      try {
+        await window.electronAPI.resetVAD();
+        info("✅ VAD reset for new recording session");
+      } catch (error) {
+        info("⚠️ VAD reset failed, continuing anyway:", error.message);
+      }
 
       // Start metrics tracking session
       metricsManagerRef.current.startRecordingSession();
@@ -234,6 +251,23 @@ function App() {
     if (chunks.length === 0) return;
     const combined = mergeFloat32Arrays(chunks);
     audioManagerRef.current.clearAudioChunks(); // Reset even if error
+
+    // Process VAD to determine if we should transcribe
+    try {
+      const vadResult = await window.electronAPI.processVAD(combined.buffer.slice());
+      info(`VAD: ${vadResult.success ? 'processed' : 'failed'}`);
+
+      // Check if we should skip transcription based on VAD
+      const shouldSkip = await window.electronAPI.shouldSkipTranscription();
+      if (shouldSkip) {
+        info("🎤 VAD: Skipping transcription - low speech activity detected");
+        return; // Skip transcription entirely
+      }
+    } catch (error) {
+      info("⚠️ VAD processing failed, proceeding with transcription anyway:", error.message);
+      // Continue with transcription if VAD fails
+    }
+
     const wavBuffer = convertToWav(combined, SAMPLE_RATE, CHANNELS, BIT_DEPTH);
 
     const audioProcessingEnd = performance.now();
@@ -247,18 +281,116 @@ function App() {
       metricsManagerRef.current.trackTranscription(transcriptionStart, transcriptionEnd, wavBuffer.length);
       if (success) {
         const segments = Array.isArray(result) ? result : [];
-        const newEntry = { segments, timestamp: new Date() };
+
+        // Separate meaningful segments from filtered noise
+        const meaningfulSegments = [];
+        const noiseSegments = [];
+
+        segments.forEach(segment => {
+          const speech = segment.speech?.trim();
+          if (!speech) {
+            noiseSegments.push({ ...segment, filterReason: 'empty' });
+            return;
+          }
+
+          // Apply the same filtering logic to determine if it would be added to buffer
+          let cleanedSpeech = speech.replace(/\[[^\]]*\]/g, '').trim();
+          cleanedSpeech = cleanedSpeech.replace(/\([^)]*\)/g, '').trim();
+
+          if (!cleanedSpeech || cleanedSpeech.length < 2) {
+            noiseSegments.push({ ...segment, filterReason: 'annotations_only' });
+            return;
+          }
+
+          const cleanedLower = cleanedSpeech.toLowerCase();
+          if (cleanedLower.includes('blank audio') ||
+              cleanedLower.includes('blank_audio') ||
+              cleanedLower === 'blank audio' ||
+              cleanedLower === 'blank_audio' ||
+              cleanedLower.includes('inaudible') ||
+              cleanedLower === '[inaudible]' ||
+              cleanedLower === '(inaudible)') {
+            noiseSegments.push({ ...segment, filterReason: 'whisper_artifact' });
+            return;
+          }
+
+          if (cleanedSpeech.length < 3) {
+            noiseSegments.push({ ...segment, filterReason: 'too_short' });
+            return;
+          }
+
+          // Check filler words - be less restrictive
+
+          const words = cleanedLower.split(/\s+/).filter(word => word.length > 0);
+          const meaningfulWords = words.filter(word =>
+            !FILLER_WORDS.includes(word) &&
+            word.length >= 1 && // Allow single characters like "I", "a"
+            !/^\W+$/.test(word)
+          );
+
+          // Only filter if segment has NO meaningful words at all
+          if (meaningfulWords.length === 0) {
+            noiseSegments.push({ ...segment, filterReason: 'filler_only' });
+            return;
+          }
+
+          // Remove the 30% threshold - allow segments with some meaningful content
+
+          // If we get here, it's meaningful
+          meaningfulSegments.push({ ...segment, cleanedSpeech });
+        });
+
+        // Create transcript entry with both meaningful and filtered segments
+        const newEntry = {
+          segments: meaningfulSegments,
+          noiseSegments,
+          timestamp: new Date(),
+          totalSegments: segments.length,
+          meaningfulCount: meaningfulSegments.length,
+          noiseCount: noiseSegments.length
+        };
         setTranscripts(prev => [newEntry, ...prev]);
-        // Accumulate conversation buffer
-        const newText = segments.filter(s => s.speech && s.speech.trim()).map(s => s.speech).join(' ');
-        const maxLength = MAX_LENGTH;
-        const currentBuffer = conversationBufferRef.current;
-        const updated = currentBuffer + (currentBuffer ? ' ' : '') + newText;
-        const final = updated.length > maxLength ? updated.slice(-maxLength) : updated;
-        conversationBufferRef.current = final;
-        const concatenated_audio_text = segments.map((res) => res.speech || '').join('').toLowerCase();
-        if (!concatenated_audio_text.includes('blank_audio')) {
-          resetPauseTimer();
+        // Filter and accumulate conversation buffer - be much more permissive
+        const filteredSegments = segments.filter(segment => {
+          let speech = segment.speech?.trim();
+          if (!speech) return false;
+
+          // Step 1: Remove bracketed and parenthesized annotations from within text
+          speech = speech.replace(/\[[^\]]*\]/g, '').trim(); // Remove [content]
+          speech = speech.replace(/\([^)]*\)/g, '').trim();  // Remove (content)
+
+          // If nothing remains after removing annotations, filter out
+          if (!speech) return false;
+
+          // Step 2: Filter out segments that are entirely Whisper artifacts
+          const cleanedLower = speech.toLowerCase();
+          if (cleanedLower.includes('blank audio') ||
+              cleanedLower.includes('blank_audio') ||
+              cleanedLower === 'blank audio' ||
+              cleanedLower === 'blank_audio' ||
+              cleanedLower.includes('inaudible') ||
+              cleanedLower.includes('inaudibile') ||
+              cleanedLower === '[inaudible]' ||
+              cleanedLower === '(inaudible)') return false;
+
+          // Step 3: Keep everything else - be very permissive
+          // Only filter out pure artifacts, let everything else through
+          segment.cleanedSpeech = speech;
+          return true;
+        });
+
+        // Only proceed if we have meaningful segments
+        if (filteredSegments.length > 0) {
+          const newText = filteredSegments.map(s => s.cleanedSpeech).join(' ');
+          const maxLength = MAX_LENGTH;
+          const currentBuffer = conversationBufferRef.current;
+          const updated = currentBuffer + (currentBuffer ? ' ' : '') + newText;
+          const final = updated.length > maxLength ? updated.slice(-maxLength) : updated;
+          conversationBufferRef.current = final;
+          info(`✅ Added ${newText.length} chars from ${filteredSegments.length} filtered segments (annotations removed)`);
+          resetPauseTimer(); // Only trigger analysis if we have meaningful content
+        } else {
+          info('🚫 Filtered out all segments - no meaningful speech detected');
         }
         if (audioManagerRef.current.getIsRecording()) {
           setStatus('Recording...');
@@ -336,7 +468,31 @@ function App() {
       React.createElement('div', { className: 'control-panel' },
         React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn', style: { marginBottom: '10px' } }, 'Start Recording'),
         React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
+        React.createElement('button', {
+          onClick: clearConversationBuffer,
+          disabled: isAnalyzing,
+          className: 'clear-btn',
+          style: {
+            marginTop: '10px',
+            padding: '5px 10px',
+            background: '#6c757d',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            opacity: isAnalyzing ? 0.6 : 1
+          }
+        }, '🧹 Clear Conversation'),
         React.createElement('div', { className: 'status' }, status),
+        React.createElement('div', {
+          style: {
+            fontSize: '11px',
+            color: '#666',
+            marginTop: '5px',
+            fontFamily: 'monospace'
+          }
+        }, `Buffer: ${conversationBufferRef.current.length} chars`),
         React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop'),
         // Test button for interview data
         React.createElement('button', {
