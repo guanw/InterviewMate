@@ -2,6 +2,11 @@
 
 An Electron application that provides real-time audio transcription using OpenAI's Whisper model and AI-powered conversation analysis using Qwen 3-Max.
 
+## Screenshots
+
+![InterviewMate Main Interface](static/InterviewMate.png)
+![Chrome Extension Popup](static/chrome-extension.png)
+
 ## Features
 
 - Real-time audio recording and transcription
