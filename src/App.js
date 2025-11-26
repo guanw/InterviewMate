@@ -289,7 +289,7 @@ function App() {
       if (success) {
         const segments = Array.isArray(result) ? result : [];
 
-        // Separate meaningful segments from filtered noise
+        // Filter segments for both UI display and conversation buffer - unified approach
         const meaningfulSegments = [];
         const noiseSegments = [];
 
@@ -300,54 +300,51 @@ function App() {
             return;
           }
 
-          // Apply the same filtering logic to determine if it would be added to buffer
-          let cleanedSpeech = speech.replace(/\[[^\]]*\]/g, '').trim();
-          cleanedSpeech = cleanedSpeech.replace(/\([^)]*\)/g, '').trim();
+          // Check if segment contains any bracketed or parenthesized content
+          const hasBrackets = speech.includes('[') || speech.includes(']');
+          const hasParentheses = speech.includes('(') || speech.includes(')');
 
-          if (!cleanedSpeech || cleanedSpeech.length < 2) {
-            noiseSegments.push({ ...segment, filterReason: 'annotations_only' });
-            return;
+          let cleanedSpeech = speech;
+          let filterReason = null;
+
+          if (hasBrackets || hasParentheses) {
+            // Remove content within brackets/parentheses for display, but filter out the segment entirely
+            cleanedSpeech = speech.replace(/\[[^\]]*\]/g, '').trim();
+            cleanedSpeech = cleanedSpeech.replace(/\([^)]*\)/g, '').trim();
+            filterReason = 'contains_annotations';
           }
 
-          const cleanedLower = cleanedSpeech.toLowerCase();
-          if (cleanedLower.includes('blank audio') ||
-              cleanedLower.includes('blank_audio') ||
-              cleanedLower === 'blank audio' ||
-              cleanedLower === 'blank_audio' ||
-              cleanedLower.includes('inaudible') ||
-              cleanedLower === '[inaudible]' ||
-              cleanedLower === '(inaudible)') {
-            noiseSegments.push({ ...segment, filterReason: 'whisper_artifact' });
-            return;
+          // Apply unified filtering logic (same for UI and LLM buffer)
+          const speechLower = speech.toLowerCase();
+
+          if (!filterReason) {
+            if (speechLower.includes('blank audio') ||
+                speechLower.includes('blank_audio') ||
+                speechLower === 'blank audio' ||
+                speechLower === 'blank_audio' ||
+                speechLower.includes('inaudible') ||
+                speechLower === '[inaudible]' ||
+                speechLower === '(inaudible)' ||
+                (speechLower.includes('blank') && speechLower.includes('audio')) ||
+                speechLower.includes('[blank') ||
+                speechLower.includes('blank]')) {
+              filterReason = 'whisper_artifact';
+            } else if (FILLER_WORDS.some(filler => speechLower === filler)) {
+              filterReason = 'filler_word';
+            } else if (speech.length < 2) {
+              filterReason = 'too_short';
+            }
           }
 
-          if (cleanedSpeech.length < 3) {
-            noiseSegments.push({ ...segment, filterReason: 'too_short' });
-            return;
+          if (filterReason) {
+            noiseSegments.push({ ...segment, filterReason, cleanedSpeech: speech }); // Show original for noise
+          } else {
+            // Keep everything else for both UI and conversation buffer
+            meaningfulSegments.push({ ...segment, cleanedSpeech });
           }
-
-          // Check filler words - be less restrictive
-
-          const words = cleanedLower.split(/\s+/).filter(word => word.length > 0);
-          const meaningfulWords = words.filter(word =>
-            !FILLER_WORDS.includes(word) &&
-            word.length >= 1 && // Allow single characters like "I", "a"
-            !/^\W+$/.test(word)
-          );
-
-          // Only filter if segment has NO meaningful words at all
-          if (meaningfulWords.length === 0) {
-            noiseSegments.push({ ...segment, filterReason: 'filler_only' });
-            return;
-          }
-
-          // Remove the 30% threshold - allow segments with some meaningful content
-
-          // If we get here, it's meaningful
-          meaningfulSegments.push({ ...segment, cleanedSpeech });
         });
 
-        // Create transcript entry with both meaningful and filtered segments
+        // Create transcript entry with unified filtering
         const newEntry = {
           segments: meaningfulSegments,
           noiseSegments,
@@ -357,34 +354,9 @@ function App() {
           noiseCount: noiseSegments.length
         };
         setTranscripts(prev => [newEntry, ...prev]);
-        // Filter and accumulate conversation buffer - be much more permissive
-        const filteredSegments = segments.filter(segment => {
-          let speech = segment.speech?.trim();
-          if (!speech) return false;
 
-          // Step 1: Remove bracketed and parenthesized annotations from within text
-          speech = speech.replace(/\[[^\]]*\]/g, '').trim(); // Remove [content]
-          speech = speech.replace(/\([^)]*\)/g, '').trim();  // Remove (content)
-
-          // If nothing remains after removing annotations, filter out
-          if (!speech) return false;
-
-          // Step 2: Filter out segments that are entirely Whisper artifacts
-          const cleanedLower = speech.toLowerCase();
-          if (cleanedLower.includes('blank audio') ||
-              cleanedLower.includes('blank_audio') ||
-              cleanedLower === 'blank audio' ||
-              cleanedLower === 'blank_audio' ||
-              cleanedLower.includes('inaudible') ||
-              cleanedLower.includes('inaudibile') ||
-              cleanedLower === '[inaudible]' ||
-              cleanedLower === '(inaudible)') return false;
-
-          // Step 3: Keep everything else - be very permissive
-          // Only filter out pure artifacts, let everything else through
-          segment.cleanedSpeech = speech;
-          return true;
-        });
+        // Use meaningfulSegments directly for conversation buffer (no separate filtering)
+        const filteredSegments = meaningfulSegments;
 
         // Only proceed if we have meaningful segments
         if (filteredSegments.length > 0) {
