@@ -75,38 +75,46 @@ function App() {
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
-  const pauseTimerRef = useRef(null); // Timer management
   const transcriptScrollRef = useRef(null); // Scroll container ref
   const audioManagerRef = useRef(new AudioManager()); // Encapsulates audio-related state
   const metricsManagerRef = useRef(new MetricsManager()); // Performance metrics tracking
 
-  const resetPauseTimer = () => {
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-    pauseTimerRef.current = setTimeout(async () => {
-      const currentBuffer = conversationBufferRef.current;
-      info('Pause detected, triggering LLM with buffer:', currentBuffer);
-      info('Buffer length:', currentBuffer ? currentBuffer.length : 'null/undefined');
-      setIsAnalyzing(true);
-      try {
-        const llmStart = performance.now();
-        const { success, response, error, analysisType: returnedAnalysisType } = await window.electronAPI.analyzeConversation(currentBuffer);
-        const llmEnd = performance.now();
-        metricsManagerRef.current.trackLLMAnalysis(llmStart, llmEnd, currentBuffer.length);
 
-        if (success) {
-          setLlmResponse(response);
-          setAnalysisType(returnedAnalysisType);
-        } else {
-          logError('LLM error:', error);
-          setLlmResponse(`Error: ${error}`);
-          setAnalysisType(null);
-        }
-      } catch (err) {
-        logError('LLM call failed:', err);
-        setLlmResponse('Failed to analyze conversation');
+  const performLLMAnalysis = async (buffer) => {
+    setIsAnalyzing(true);
+    try {
+      const llmStart = performance.now();
+      const { success, response, error, analysisType: returnedAnalysisType } = await window.electronAPI.analyzeConversation(buffer);
+      const llmEnd = performance.now();
+      metricsManagerRef.current.trackLLMAnalysis(llmStart, llmEnd, buffer.length);
+
+      if (success) {
+        setLlmResponse(response);
+        setAnalysisType(returnedAnalysisType);
+      } else {
+        logError('LLM error:', error);
+        setLlmResponse(`Error: ${error}`);
+        setAnalysisType(null);
       }
-      setIsAnalyzing(false);
-    }, PAUSE_DELAY);
+    } catch (err) {
+      logError('LLM call failed:', err);
+      setLlmResponse('Failed to analyze conversation');
+    }
+    setIsAnalyzing(false);
+  };
+
+  const handleManualAnalysis = async () => {
+    const currentBuffer = conversationBufferRef.current;
+    info('🎯 Manual analysis button clicked');
+    info('Current buffer length:', currentBuffer ? currentBuffer.length : 0);
+
+    if (currentBuffer && currentBuffer.trim()) {
+      info('✅ Starting manual analysis with buffer:', currentBuffer.substring(0, 100) + '...');
+      await performLLMAnalysis(currentBuffer);
+    } else {
+      info('⚠️ No conversation buffer to analyze');
+      setLlmResponse('No conversation to analyze yet. Start speaking first.');
+    }
   };
 
   // Audio State (now using refs)
@@ -232,8 +240,7 @@ function App() {
     const audioContext = audioManagerRef.current.getAudioContext();
     if (audioContext) audioContext.close();
 
-    // Clear any pending timers and audio chunks
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    // Clear any audio chunks
     audioManagerRef.current.clearAudioChunks();
     setStatus('Ready');
   };
@@ -388,7 +395,6 @@ function App() {
           const final = updated.length > maxLength ? updated.slice(-maxLength) : updated;
           conversationBufferRef.current = final;
           info(`✅ Added ${newText.length} chars from ${filteredSegments.length} filtered segments (annotations removed)`);
-          resetPauseTimer(); // Only trigger analysis if we have meaningful content
         } else {
           info('🚫 Filtered out all segments - no meaningful speech detected');
         }
@@ -468,12 +474,32 @@ function App() {
       React.createElement('div', { className: 'control-panel' },
         React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn', style: { marginBottom: '10px' } }, 'Start Recording'),
         React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
+
+        // Manual Analysis Button (always available)
+        React.createElement('button', {
+          onClick: handleManualAnalysis,
+          disabled: isAnalyzing || !conversationBufferRef.current?.trim(),
+          className: 'analyze-btn',
+          style: {
+            marginTop: '10px',
+            marginBottom: '10px',
+            padding: '8px 12px',
+            background: '#28a745',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            fontSize: '12px',
+            cursor: (isAnalyzing || !conversationBufferRef.current?.trim()) ? 'not-allowed' : 'pointer',
+            opacity: (isAnalyzing || !conversationBufferRef.current?.trim()) ? 0.6 : 1
+          }
+        }, isAnalyzing ? '🔄 Analyzing...' : '🧠 Analyze Conversation'),
+
         React.createElement('button', {
           onClick: clearConversationBuffer,
           disabled: isAnalyzing,
           className: 'clear-btn',
           style: {
-            marginTop: '10px',
+            marginBottom: '10px',
             padding: '5px 10px',
             background: '#6c757d',
             color: 'white',
@@ -484,6 +510,7 @@ function App() {
             opacity: isAnalyzing ? 0.6 : 1
           }
         }, '🧹 Clear Conversation'),
+
         React.createElement('div', { className: 'status' }, status),
         React.createElement('div', {
           style: {
