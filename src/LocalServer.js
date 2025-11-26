@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { log } = require('./Logging.js');
 
 class LocalServer {
   constructor(ipcMain) {
@@ -17,7 +18,7 @@ class LocalServer {
 
   async start(mainWindow) {
     if (this.isRunning) {
-      console.log('Server is already running');
+      log('Server is already running');
       return;
     }
 
@@ -52,25 +53,25 @@ class LocalServer {
 
       // Start HTTP server
       this.server = this.app.listen(this.PORT, () => {
-        console.log(`🚀 Interview Extractor Server running on port ${this.PORT}`);
-        console.log(`📊 Health check: http://localhost:${this.PORT}/api/health`);
-        console.log(`📥 Data endpoint: http://localhost:${this.PORT}/api/interview-question-data`);
-        console.log('Waiting for data from Chrome extension...\n');
+        log(`🚀 Interview Extractor Server running on port ${this.PORT}`);
+        log(`📊 Health check: http://localhost:${this.PORT}/api/health`);
+        log(`📥 Data endpoint: http://localhost:${this.PORT}/api/interview-question-data`);
+        log('Waiting for data from Chrome extension...\n');
         this.isRunning = true;
       });
 
     } catch (error) {
-      console.error('Error starting server:', error);
+      error('Error starting server:', error);
       throw error;
     }
   }
 
   handleInterviewData(data) {
     try {
-      console.log('\n=== Interview Data Received ===');
-      console.log('Timestamp:', data.timestamp);
-      console.log('Extension ID:', data.extensionId);
-      console.log('URL:', data.data?.url);
+      log('\n=== Interview Data Received ===');
+      log('Timestamp:', data.timestamp);
+      log('Extension ID:', data.extensionId);
+      log('URL:', data.data?.url);
 
       // Store the interview data in memory for analysis
       this.currentInterviewData = {
@@ -80,46 +81,46 @@ class LocalServer {
       };
 
       if (data.data?.problem) {
-        console.log('\n--- Problem Information ---');
-        console.log('Title:', data.data.problem.title);
-        console.log('Difficulty:', data.data.problem.difficulty);
-        console.log('Tags:', data.data.problem.tags);
+        log('\n--- Problem Information ---');
+        log('Title:', data.data.problem.title);
+        log('Difficulty:', data.data.problem.difficulty);
+        log('Tags:', data.data.problem.tags);
       }
 
       if (data.data?.code) {
-        console.log('\n--- Code Information ---');
-        console.log('Code Type:', data.data.code.monaco ? 'Monaco' :
+        log('\n--- Code Information ---');
+        log('Code Type:', data.data.code.monaco ? 'Monaco' :
                                         data.data.code.codemirror ? 'CodeMirror' :
                                         data.data.code.textarea ? 'Textarea' : 'None');
 
         const codeData = data.data.code.monaco || data.data.code.codemirror || data.data.code.textarea || {};
-        console.log('Content:', codeData.content ?
+        log('Content:', codeData.content ?
             `${codeData.content.substring(0, 100)}...` : 'No content');
-        console.log('Language:', codeData.language || 'unknown');
+        log('Language:', codeData.language || 'unknown');
       }
 
-      console.log('\n💾 Interview data stored in memory for analysis');
-      console.log('🎯 New question available for analysis via conversationBuffer');
+      log('\n💾 Interview data stored in memory for analysis');
+      log('🎯 New question available for analysis via conversationBuffer');
 
       // Process the data (save to file)
       this.processExtractedData(data.data);
 
       // Send to renderer via IPC
       if (this.mainWindow) {
-        console.log('📤 Sending IPC event to renderer: interview-question-received');
+        log('📤 Sending IPC event to renderer: interview-question-received');
         this.mainWindow.webContents.send('interview-question-received', {
           type: 'interview-question-question',
           timestamp: data.timestamp,
           extensionId: data.extensionId,
           data: data.data
         });
-        console.log('✅ IPC event sent successfully');
+        log('✅ IPC event sent successfully');
       } else {
-        console.log('❌ Main window not available for IPC');
+        log('❌ Main window not available for IPC');
       }
 
     } catch (error) {
-      console.error('Error processing Interview data:', error);
+      error('Error processing Interview data:', error);
     }
   }
 
@@ -135,17 +136,17 @@ class LocalServer {
       }
 
       fs.writeFileSync(path.join(dataDir, filename), JSON.stringify(data, null, 2));
-      console.log(`📁 Data saved to: ${path.join(dataDir, filename)}`);
+      log(`📁 Data saved to: ${path.join(dataDir, filename)}`);
 
     } catch (error) {
-      console.error('Error saving data:', error);
+      error('Error saving data:', error);
     }
   }
 
   stop() {
     if (this.server) {
       this.server.close(() => {
-        console.log('Server closed');
+        log('Server closed');
         this.isRunning = false;
       });
     }
@@ -170,7 +171,7 @@ class LocalServer {
 
   // Clear current interview data (when user extracts new question)
   clearCurrentInterviewData() {
-    console.log('🧹 Clearing current interview data from memory');
+    log('🧹 Clearing current interview data from memory');
     this.currentInterviewData = null;
   }
 

@@ -12,15 +12,8 @@ const LocalServer = require('./src/LocalServer.js');
 // Import VAD Manager
 const VADManager = require('./src/VADManager.js');
 
-// Import centralized logging (temporarily disabled for debugging)
-// const loggerModule = require('./src/Logging.js');
-// const logger = loggerModule.logger;
-// const info = logger.info.bind(logger);
-// const logError = logger.error.bind(logger);
-
-// Temporary logging functions
-const info = console.log;
-const logError = console.error;
+// Import centralized logging
+const { log: info, error: logError } = require('./src/Logging.js');
 
 // Audio constants (matching src/Constants.js)
 const SAMPLE_RATE = 16000;

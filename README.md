@@ -1,6 +1,6 @@
 # InterviewMate
 
-An Electron application that provides real-time audio transcription using OpenAI's Whisper model and AI-powered conversation analysis using Qwen 3-Max.
+A comprehensive interview preparation tool that combines **real-time audio transcription**, **manual AI analysis control**, and **Chrome extension integration** for LeetCode, HackerRank, and CoderPad. Features advanced token optimization to minimize API costs while providing intelligent interview insights.
 
 ## Screenshots
 
@@ -9,14 +9,18 @@ An Electron application that provides real-time audio transcription using OpenAI
 
 ## Features
 
-- Real-time audio recording and transcription
-- Automatic pause detection for AI analysis
-- Scrollable transcription history
-- Keyboard shortcuts (S to start, X to stop)
-- Responsive UI with controls and analysis side-by-side
-- Performance metrics tracking (View → Performance Metrics)
-- Hot reloading in development mode
-- ESLint integration for code quality
+- **Manual AI Analysis Control**: Click "Analyze Conversation" button to trigger LLM analysis (prevents unwanted token usage)
+- **Smart Transcription Filtering**: Automatically filters out "BLANK AUDIO", filler words, and low-quality speech
+- **Conversation Buffer Management**: Manual reset with "Clear Conversation" button and real-time character count
+- **Chrome Extension Support**: Extract interview questions from LeetCode, HackerRank, and CoderPad
+- **Real-time Audio Processing**: Voice Activity Detection (VAD) for efficient transcription
+- **Token Usage Optimization**: Quality filtering prevents expensive LLM calls on poor audio
+- **Centralized Logging**: Cross-platform logging system with configurable log levels
+- **Performance Metrics**: Track transcription and analysis performance (View → Performance Metrics)
+- **Keyboard Shortcuts**: S to start recording, X to stop
+- **Responsive UI**: Controls and analysis side-by-side layout
+- **Hot Reloading**: Development mode with automatic restarts
+- **ESLint Integration**: Code quality enforcement across Electron + React stack
 
 ## Prerequisites
 
@@ -57,20 +61,51 @@ An Electron application that provides real-time audio transcription using OpenAI
 
 ## Usage
 
+### Basic Recording
+
 - Click "Start Recording" or press 'S' to begin recording.
-- Speak into your microphone.
-- The app will transcribe your speech in real-time.
-- After a pause (4 seconds), it will send the conversation to AI for analysis.
+- Speak into your microphone - speech is transcribed in real-time.
 - Click "Stop Recording" or press 'X' to stop.
 - View transcription history in the scrollable bottom section.
 
+### AI Analysis (Manual Control)
+
+- **No automatic analysis** - you control when to spend tokens
+- Click **"🧠 Analyze Conversation"** to send current buffer to LLM
+- Analysis appears in the right panel with interview insights
+- Use **"🧹 Clear Conversation"** to reset buffer between topics
+- Monitor **"Buffer: X chars"** to see accumulated conversation
+
+### Chrome Extension
+
+- Install the extension from `interview-extension/` folder
+- Navigate to LeetCode, HackerRank, or CoderPad problems
+- Click extension icon and **"Extract Question"**
+- Question data appears in InterviewMate for enhanced analysis
+
 ## Architecture
 
-- **Frontend**: React components for UI
-- **Audio Processing**: Web Audio API with ScriptProcessorNode
-- **Transcription**: OpenAI Whisper via whisper-node
-- **AI Analysis**: Qwen 3-Max via DashScope API
+### Core Components
+
+- **Frontend**: React components with manual AI analysis controls
+- **Audio Processing**: Web Audio API with Voice Activity Detection (VAD)
+- **Transcription**: OpenAI Whisper with quality filtering and artifact removal
+- **AI Analysis**: Qwen 3-Max via DashScope API (manual trigger only)
 - **IPC**: Electron for secure main/renderer communication
+
+### Chrome Extension
+
+- **Content Scripts**: Extract interview questions from LeetCode, HackerRank, CoderPad
+- **Background Service**: Handles server communication and data processing
+- **Popup UI**: Simple interface for question extraction
+- **Local Server**: Express.js server for extension ↔ Electron communication
+
+### Quality & Performance
+
+- **Transcription Filtering**: Removes "BLANK AUDIO", filler words, and low-quality segments
+- **Token Optimization**: Manual analysis prevents unwanted API calls
+- **Centralized Logging**: Cross-platform logging with configurable levels
+- **Performance Metrics**: Track transcription and analysis performance
 
 ## Development
 
@@ -83,10 +118,32 @@ An Electron application that provides real-time audio transcription using OpenAI
 
 ### Project Structure
 
-- `src/`: React components and utilities
-- `main.js`: Electron main process
-- `preload.js`: IPC bridge
-- `index.html`: Main UI template
+```
+interviewmate/
+├── src/                          # React frontend
+│   ├── App.js                   # Main React component
+│   ├── AudioManager.js          # Audio processing logic
+│   ├── Constants.js             # Application constants
+│   ├── LocalServer.js           # Express server for extension comms
+│   ├── Logging.js               # Centralized logging system
+│   ├── MetricsManager.js        # Performance tracking
+│   ├── TranscriptEntry.js       # Transcription display component
+│   └── VADManager.js            # Voice Activity Detection
+├── interview-extension/         # Chrome extension
+│   ├── manifest.json           # Extension configuration
+│   ├── background.js           # Service worker
+│   ├── content-script.js       # Page data extraction
+│   ├── popup.html/js           # Extension UI
+│   └── README.md               # Extension documentation
+├── static/                      # Static assets
+│   ├── InterviewMate.png       # Main interface screenshot
+│   └── chrome-extension.png    # Extension screenshot
+├── main.js                     # Electron main process
+├── preload.js                  # IPC security bridge
+├── index.html                  # Main UI template
+├── package.json                # Dependencies and scripts
+└── README.md                   # This file
+```
 
 ### Code Quality
 
@@ -99,8 +156,108 @@ This project uses ESLint to maintain code quality and catch potential issues dur
 
 Run `npm run lint` before committing to ensure code quality.
 
+## Token Usage Optimization
+
+InterviewMate includes several features to minimize API costs:
+
+### Manual Analysis Control
+
+- **No automatic LLM calls** - you control when analysis happens
+- **"Analyze Conversation" button** prevents unwanted token usage
+- **Buffer management** with manual reset capabilities
+
+### Smart Transcription Filtering
+
+- **Removes "BLANK AUDIO"** artifacts from Whisper
+- **Filters filler words**: "um", "uh", "ah", "er", "hmm", "mhm"
+- **Quality scoring**: Only meaningful speech reaches the conversation buffer
+- **Annotation cleanup**: Removes `[LAUGHTER]`, `(audience)`, etc. from transcripts
+
+### Usage Monitoring
+
+- **Real-time buffer tracking**: See "Buffer: X chars" status
+- **Performance metrics**: Track transcription and analysis times
+- **Manual control**: Clear conversation buffer between topics
+
+## Chrome Extension Setup
+
+The included Chrome extension extracts interview questions for enhanced AI analysis:
+
+### Installation
+
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" in the top right
+3. Click "Load unpacked" and select the `interview-extension/` folder
+4. The extension will appear in your toolbar
+
+### Supported Platforms
+
+- **LeetCode** (`leetcode.com`)
+- **HackerRank** (`hackerrank.com`)
+- **CoderPad** (`coderpad.io`)
+
+### Usage
+
+1. Navigate to any supported interview platform
+2. Click the InterviewMate extension icon
+3. Click "Extract Question" to send problem data to the app
+4. Question appears in InterviewMate for priority analysis
+
+## Logging System
+
+InterviewMate uses a centralized logging system across all components:
+
+### Log Levels
+
+- `error`: Errors and exceptions
+- `warn`: Warnings and potential issues
+- `info`: General information (default)
+- `debug`: Detailed debugging information
+
+### Configuration
+
+Set the log level using environment variable:
+
+```bash
+LOG_LEVEL=debug npm start  # Show all log levels
+LOG_LEVEL=error npm start  # Show only errors
+```
+
+### Cross-Platform Support
+
+- **Electron Main Process**: Uses CommonJS imports
+- **React Renderer Process**: Uses ES6 imports
+- **Consistent formatting** across all components
+
 ## Troubleshooting
 
-- Ensure microphone permissions are granted.
-- Check that the API key is correctly set in `.env`.
-- For audio issues, verify Web Audio API support in your browser.
+### Audio & Recording Issues
+
+- Ensure microphone permissions are granted in browser/Electron
+- Check that the API key is correctly set in `.env`
+- For audio issues, verify Web Audio API support
+- Try restarting the app if VAD (Voice Activity Detection) fails
+
+### LLM Analysis Issues
+
+- **"Free tier exhausted"**: Upgrade your DashScope plan or reduce analysis frequency
+- **No analysis appearing**: Click "🧠 Analyze Conversation" button (analysis is manual-only)
+- **Poor analysis quality**: Clear conversation buffer and try again with focused speech
+
+### Chrome Extension Issues
+
+- **Extension not loading**: Ensure "Developer mode" is enabled in `chrome://extensions/`
+- **Question not extracting**: Refresh the interview page and try again
+- **Connection failed**: Ensure InterviewMate app is running on localhost:8080
+
+### Performance Issues
+
+- **High token usage**: Use manual analysis mode and clear buffer regularly
+- **Slow transcription**: Check Whisper model download with `npx whisper-node download`
+- **UI lag**: Clear conversation buffer if it gets too large (>10,000 chars)
+
+### Logging & Debugging
+
+- Set `LOG_LEVEL=debug` to see detailed logs
+- Check console for `[INFO]`, `[ERROR]`, `[WARN]` messages
+- Use "Performance Metrics" from View menu to track performance

@@ -1,15 +1,15 @@
-import { SAMPLE_RATE, CHANNELS, BIT_DEPTH, PAUSE_DELAY, MAX_LENGTH, FILLER_WORDS } from './Constants.js';
+import { SAMPLE_RATE, CHANNELS, BIT_DEPTH, MAX_LENGTH, FILLER_WORDS } from './Constants.js';
 import { AudioManager } from './AudioManager.js';
 import { TranscriptEntry } from './TranscriptEntry.js';
 import { MetricsManager } from './MetricsManager.js';
 import { MetricsDisplay } from './MetricsDisplay.js';
 // VAD import will be handled in main process due to Electron renderer limitations
 
-// Temporary fallback to console until logging module is browser-compatible
-// eslint-disable-next-line no-console
-const logError = console.error;
-// eslint-disable-next-line no-console
-const info = console.log;
+import { log, error } from './Logging.js';
+
+// Convenience aliases for renderer process
+const logError = error;
+const info = log;
 
 const { useState, useEffect, useRef } = React;
 

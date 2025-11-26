@@ -69,7 +69,10 @@ const error = logger.error.bind(logger);
 const warn = logger.warn.bind(logger);
 const debug = logger.debug.bind(logger);
 
-// Export for different module systems
+// ES6 module exports (works in both Node.js and browsers with bundlers)
+export { logger, log, error, warn, debug };
+
+// CommonJS exports for backward compatibility
 if (typeof module !== 'undefined' && module.exports) {
   // Node.js/CommonJS
   module.exports = { logger, log, error, warn, debug };
@@ -81,8 +84,12 @@ if (typeof module !== 'undefined' && module.exports) {
   exports.warn = warn;
   exports.debug = debug;
 } else {
-  // ES6 modules and Browser globals
+  // Browser globals fallback
   if (typeof window !== 'undefined') {
     window.logger = logger;
+    window.log = log;
+    window.error = error;
+    window.warn = warn;
+    window.debug = debug;
   }
 }

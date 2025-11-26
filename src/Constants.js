@@ -1,8 +1,9 @@
 // Audio Configuration Constants
+
+// ES6 exports (for React/frontend)
 export const SAMPLE_RATE = 16000;
 export const CHANNELS = 1;
 export const BIT_DEPTH = 16;
-export const PAUSE_DELAY = 4000; // 4 seconds, configurable
 export const MAX_LENGTH = 50000; // keep last 50000 characters
 export const FILLER_WORDS = [
     'um', 'uh', 'ah', 'er', 'hmm', 'mhm', 'uh-huh', 'uh huh',
@@ -10,3 +11,14 @@ export const FILLER_WORDS = [
     'huh', 'oh', 'wow', 'hey', 'hi', 'bye', 'thanks', 'thank you',
     'please', 'sorry', 'excuse me', 'pardon'
 ];
+
+// CommonJS exports (for Electron main process)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        SAMPLE_RATE,
+        CHANNELS,
+        BIT_DEPTH,
+        MAX_LENGTH,
+        FILLER_WORDS
+    };
+}

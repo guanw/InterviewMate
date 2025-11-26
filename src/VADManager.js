@@ -1,8 +1,11 @@
+const { log, error:logError } = require('./Logging.js');
+const { SAMPLE_RATE } = require('./Constants.js');
+
 class VADManager {
   constructor() {
     this.audioLevelHistory = [];
     this.isInitialized = true; // Simple VAD doesn't need initialization
-    this.sampleRate = 16000;
+    this.sampleRate = SAMPLE_RATE;
     this.frameSize = 1024; // Process in chunks
   }
 
@@ -35,7 +38,7 @@ class VADManager {
       const isSpeech = dbLevel > -40;
       const confidence = Math.min(1.0, Math.max(0.0, (dbLevel + 60) / 40)); // Normalize to 0-1
 
-      info(`🎤 VAD: ${isSpeech ? 'SPEECH' : 'SILENCE'} (RMS: ${rms.toFixed(4)}, dB: ${dbLevel.toFixed(1)}, conf: ${(confidence * 100).toFixed(1)}%)`);
+      log(`🎤 VAD: ${isSpeech ? 'SPEECH' : 'SILENCE'} (RMS: ${rms.toFixed(4)}, dB: ${dbLevel.toFixed(1)}, conf: ${(confidence * 100).toFixed(1)}%)`);
 
       return {
         timestamp: now,
@@ -84,19 +87,19 @@ class VADManager {
 
     // Skip if no speech detected in recent window
     if (!activity.isActive) {
-      info('🚫 VAD: Skipping transcription - no speech detected recently');
+      log('🚫 VAD: Skipping transcription - no speech detected recently');
       return true;
     }
 
     // Skip if speech ratio is too low (mostly silence/background)
     if (activity.speechRatio < 0.3) {
-      info(`🚫 VAD: Skipping transcription - only ${(activity.speechRatio * 100).toFixed(1)}% speech detected`);
+      log(`🚫 VAD: Skipping transcription - only ${(activity.speechRatio * 100).toFixed(1)}% speech detected`);
       return true;
     }
 
     // Skip if average volume is too low
     if (activity.averageDbLevel < -45) {
-      info(`🚫 VAD: Skipping transcription - too quiet (${activity.averageDbLevel.toFixed(1)}dB)`);
+      log(`🚫 VAD: Skipping transcription - too quiet (${activity.averageDbLevel.toFixed(1)}dB)`);
       return true;
     }
 
@@ -105,7 +108,7 @@ class VADManager {
 
   reset() {
     this.audioLevelHistory = [];
-    info('🔄 VAD audio level history reset');
+    log('🔄 VAD audio level history reset');
   }
 
   getStats() {
@@ -126,9 +129,5 @@ class VADManager {
     };
   }
 }
-
-// Temporary logging functions (should be imported from Logging.js)
-const info = console.log;
-const logError = console.error;
 
 module.exports = VADManager;
