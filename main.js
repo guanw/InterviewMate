@@ -216,8 +216,6 @@ ipcMain.handle('analyze-conversation', async (_, conversationBuffer, forceNewAna
             info('🎯 Prioritizing extracted interview metadata for analysis');
 
             const problemTitle = interviewData.problem?.title || 'Unknown problem';
-            const problemDifficulty = interviewData.problem?.difficulty || 'Unknown difficulty';
-            const problemTags = interviewData.problem?.tags?.join(', ') || 'No tags';
             const problemDescription = interviewData.problem?.description || 'No description available';
 
             // Extract code if available
@@ -233,8 +231,6 @@ ipcMain.handle('analyze-conversation', async (_, conversationBuffer, forceNewAna
 
 **PRIMARY QUESTION TO ANALYZE:**
 Title: ${problemTitle}
-Difficulty: ${problemDifficulty}
-Tags: ${problemTags}
 Description: ${problemDescription}
 
 ${codeInfo !== 'No code provided' ? `**STARTING CODE:**\n${codeInfo}` : ''}

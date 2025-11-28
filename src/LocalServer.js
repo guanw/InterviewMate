@@ -83,8 +83,6 @@ class LocalServer {
       if (data.data?.problem) {
         log('\n--- Problem Information ---');
         log('Title:', data.data.problem.title);
-        log('Difficulty:', data.data.problem.difficulty);
-        log('Tags:', data.data.problem.tags);
       }
 
       if (data.data?.code) {

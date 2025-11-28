@@ -504,8 +504,6 @@ function App() {
               data: {
                 problem: {
                   title: 'Two Sum',
-                  difficulty: 'Easy',
-                  tags: ['Array', 'Hash Table'],
                   description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.'
                 }
               }
@@ -545,16 +543,6 @@ function App() {
           React.createElement('div', null,
             React.createElement('strong', null, '📋 Current Question: '),
             React.createElement('span', null, currentQuestion.title || 'Unknown title'),
-            currentQuestion.difficulty && React.createElement('span', {
-              style: {
-                marginLeft: '10px',
-                padding: '2px 6px',
-                background: '#007bff',
-                color: 'white',
-                borderRadius: '3px',
-                fontSize: '12px'
-              }
-            }, currentQuestion.difficulty)
           ),
           React.createElement('button', {
             onClick: async () => {
