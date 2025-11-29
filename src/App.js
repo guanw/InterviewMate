@@ -444,54 +444,24 @@ function App() {
   return React.createElement('div', null,
     React.createElement('div', { className: 'top-row' },
       React.createElement('div', { className: 'control-panel' },
-        React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn', style: { marginBottom: '10px' } }, 'Start Recording'),
+        React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn' }, 'Start Recording'),
         React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
 
         // Manual Analysis Button (always available)
         React.createElement('button', {
           onClick: handleManualAnalysis,
           disabled: isAnalyzing || !conversationBufferRef.current?.trim(),
-          className: 'analyze-btn',
-          style: {
-            marginTop: '10px',
-            marginBottom: '10px',
-            padding: '8px 12px',
-            background: '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '3px',
-            fontSize: '12px',
-            cursor: (isAnalyzing || !conversationBufferRef.current?.trim()) ? 'not-allowed' : 'pointer',
-            opacity: (isAnalyzing || !conversationBufferRef.current?.trim()) ? 0.6 : 1
-          }
+          className: 'analyze-btn'
         }, isAnalyzing ? '🔄 Analyzing...' : '🧠 Analyze Conversation'),
 
         React.createElement('button', {
           onClick: clearConversationBuffer,
           disabled: isAnalyzing,
-          className: 'clear-btn',
-          style: {
-            marginBottom: '10px',
-            padding: '5px 10px',
-            background: '#6c757d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '3px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            opacity: isAnalyzing ? 0.6 : 1
-          }
+          className: 'clear-btn'
         }, '🧹 Clear Conversation'),
 
         React.createElement('div', { className: 'status' }, status),
-        React.createElement('div', {
-          style: {
-            fontSize: '11px',
-            color: '#666',
-            marginTop: '5px',
-            fontFamily: 'monospace'
-          }
-        }, `Buffer: ${conversationBufferRef.current.length} chars`),
+        React.createElement('div', { className: 'buffer-display' }, `Buffer: ${conversationBufferRef.current.length} chars`),
         React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop'),
         // Test button for interview data
         React.createElement('button', {
@@ -513,33 +483,13 @@ function App() {
             setCurrentQuestion(testData.data.problem);
             info('🎯 Test: Question set manually:', testData.data.problem.title);
           },
-          style: {
-            marginTop: '10px',
-            padding: '5px 10px',
-            background: '#6c757d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '3px',
-            fontSize: '12px',
-            cursor: 'pointer'
-          }
+          className: 'test-btn'
         }, '🧪 Test Question')
       ),
       React.createElement('div', { className: 'llm-container' },
         React.createElement('h2', null, 'AI Analysis'),
         // Current question info or guidance
-        currentQuestion ? React.createElement('div', {
-          style: {
-            background: '#e8f5e8',
-            padding: '10px',
-            borderRadius: '4px',
-            marginBottom: '10px',
-            border: '1px solid #c3e6c3',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }
-        },
+        currentQuestion ? React.createElement('div', { className: 'current-question' },
           React.createElement('div', null,
             React.createElement('strong', null, '📋 Current Question: '),
             React.createElement('span', null, currentQuestion.title || 'Unknown title'),
@@ -554,40 +504,17 @@ function App() {
                 logError('Error clearing interview data:', error);
               }
             },
-            style: {
-              background: '#dc3545',
-              color: 'white',
-              border: 'none',
-              borderRadius: '3px',
-              padding: '4px 8px',
-              fontSize: '12px',
-              cursor: 'pointer'
-            }
+            className: 'clear-question-btn'
           }, 'Clear')
-        ) : conversationBufferRef.current && conversationBufferRef.current.trim() && React.createElement('div', {
-          style: {
-            background: '#fff3cd',
-            padding: '10px',
-            borderRadius: '4px',
-            marginBottom: '10px',
-            border: '1px solid #ffeaa7'
-          }
-        },
+        ) : conversationBufferRef.current && conversationBufferRef.current.trim() && React.createElement('div', { className: 'tip-message' },
           React.createElement('strong', null, '💡 Tip: '),
           'Extract a question from the Chrome extension to get priority analysis. ',
-          React.createElement('span', { style: { fontSize: '12px', color: '#666' } },
+          React.createElement('span', { className: 'tip-span' },
             'Current analysis is based on conversation only.'
           )
         ),
         // Analysis type indicator
-        analysisType && React.createElement('div', {
-          style: {
-            fontSize: '12px',
-            color: '#666',
-            marginBottom: '8px',
-            fontStyle: 'italic'
-          }
-        },
+        analysisType && React.createElement('div', { className: 'analysis-type' },
           analysisType === 'interview-metadata-priority' ?
             '🎯 Analysis based on extracted interview question + conversation context' :
             '💬 Analysis based on conversation only'
