@@ -15,6 +15,21 @@ const VADManager = require('./src/VADManager.js');
 // Import centralized logging
 const { log: info, error: logError } = require('./src/Logging.js');
 
+// Import IPC constants
+const {
+  IPC_TRANSCRIBE_AUDIO,
+  IPC_ANALYZE_CONVERSATION,
+  IPC_PROCESS_VAD,
+  IPC_SHOULD_SKIP_TRANSCRIPTION,
+  IPC_RESET_VAD,
+  IPC_GET_VAD_STATS,
+  IPC_GET_SERVER_STATUS,
+  IPC_RESTART_SERVER,
+  IPC_SHOW_METRICS,
+  IPC_INTERVIEW_QUESTION_RECEIVED,
+  IPC_CLEAR_INTERVIEW_DATA
+} = require('./src/IPCConstants.js');
+
 // Audio constants (matching src/Constants.js)
 const SAMPLE_RATE = 16000;
 
@@ -114,7 +129,7 @@ app.whenReady().then(() => {
           label: 'Performance Metrics',
           accelerator: 'CmdOrCtrl+Shift+P',
           click: () => {
-            mainWindow.webContents.send('show-metrics');
+            mainWindow.webContents.send(IPC_SHOW_METRICS);
           }
         },
         { type: 'separator' },
@@ -142,7 +157,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(menu);
 });
 
-ipcMain.handle('transcribe-audio', async (_, audioBuffer) => {
+ipcMain.handle(IPC_TRANSCRIBE_AUDIO, async (_, audioBuffer) => {
   info('ipc-main: transcribe-audio');
   const tempDir = os.tmpdir();
   const tempFilePath = path.join(tempDir, `whisper_temp_${Date.now()}.wav`);
@@ -194,7 +209,7 @@ app.on('will-quit', () => {
   }
 });
 
-ipcMain.handle('analyze-conversation', async (_, conversationBuffer, forceNewAnalysis = false) => {
+ipcMain.handle(IPC_ANALYZE_CONVERSATION, async (_, conversationBuffer, forceNewAnalysis = false) => {
     info('Received conversationBuffer:', conversationBuffer);
     info('Type:', typeof conversationBuffer);
     info('Force new analysis:', forceNewAnalysis);
@@ -280,7 +295,7 @@ IMPORTANT: Always provide code solutions in PYTHON, regardless of any starting c
 });
 
 // IPC handlers for local server communication
-ipcMain.handle('get-server-status', async () => {
+ipcMain.handle(IPC_GET_SERVER_STATUS, async () => {
     if (localServer) {
         return {
             success: true,
@@ -294,7 +309,7 @@ ipcMain.handle('get-server-status', async () => {
     }
 });
 
-ipcMain.handle('restart-server', async () => {
+ipcMain.handle(IPC_RESTART_SERVER, async () => {
     try {
         if (localServer) {
             localServer.stop();
@@ -311,7 +326,7 @@ ipcMain.handle('restart-server', async () => {
     }
 });
 
-ipcMain.handle('clear-interview-data', async () => {
+ipcMain.handle(IPC_CLEAR_INTERVIEW_DATA, async () => {
   try {
     if (localServer) {
       localServer.clearCurrentInterviewData();
@@ -326,7 +341,7 @@ ipcMain.handle('clear-interview-data', async () => {
 });
 
 // VAD-related IPC handlers
-ipcMain.handle('process-vad', async (_, audioBuffer) => {
+ipcMain.handle(IPC_PROCESS_VAD, async (_, audioBuffer) => {
   try {
     if (!vadManager) {
       return { success: false, error: 'VAD Manager not initialized' };
@@ -343,7 +358,7 @@ ipcMain.handle('process-vad', async (_, audioBuffer) => {
   }
 });
 
-ipcMain.handle('should-skip-transcription', async () => {
+ipcMain.handle(IPC_SHOULD_SKIP_TRANSCRIPTION, async () => {
   try {
     if (!vadManager) {
       return false; // Default to not skipping if VAD not available
@@ -356,7 +371,7 @@ ipcMain.handle('should-skip-transcription', async () => {
   }
 });
 
-ipcMain.handle('reset-vad', async () => {
+ipcMain.handle(IPC_RESET_VAD, async () => {
   try {
     if (vadManager) {
       vadManager.reset();
@@ -368,7 +383,7 @@ ipcMain.handle('reset-vad', async () => {
   }
 });
 
-ipcMain.handle('get-vad-stats', async () => {
+ipcMain.handle(IPC_GET_VAD_STATS, async () => {
   try {
     if (!vadManager) {
       return null;
