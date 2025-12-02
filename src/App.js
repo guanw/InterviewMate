@@ -1,8 +1,11 @@
+import React from 'react';
 import { SAMPLE_RATE, CHANNELS, BIT_DEPTH, MAX_LENGTH, FILLER_WORDS } from './Constants.js';
 import { AudioManager } from './AudioManager.js';
 import { TranscriptEntry } from './TranscriptEntry.js';
 import { MetricsManager } from './MetricsManager.js';
 import { MetricsDisplay } from './MetricsDisplay.js';
+import { SearchBox } from './SearchBox.js';
+import { SearchProvider, useSearch } from './SearchContext.js';
 // VAD import will be handled in main process due to Electron renderer limitations
 
 import { log, error } from './Logging.js';
@@ -12,6 +15,9 @@ const logError = error;
 const info = log;
 
 const { useState, useEffect, useRef } = React;
+
+// Constants
+const DEFAULT_ANALYSIS_MESSAGE = 'No analysis yet';
 
 
 // Helper functions
@@ -107,13 +113,23 @@ function App() {
     const currentBuffer = conversationBufferRef.current;
     info('🎯 Manual analysis button clicked');
     info('Current buffer length:', currentBuffer ? currentBuffer.length : 0);
+    info('Current question available:', !!currentQuestion);
 
-    if (currentBuffer && currentBuffer.trim()) {
-      info('✅ Starting manual analysis with buffer:', currentBuffer.substring(0, 100) + '...');
+    if (currentQuestion) {
+      // If we have a question, analyze based on question + conversation (if any)
+      const analysisText = currentBuffer && currentBuffer.trim()
+        ? `${currentQuestion.title}\n${currentQuestion.description}\n\nConversation: ${currentBuffer}`
+        : `${currentQuestion.title}\n${currentQuestion.description}`;
+
+      info('✅ Starting analysis with question:', currentQuestion.title);
+      await performLLMAnalysis(analysisText);
+    } else if (currentBuffer && currentBuffer.trim()) {
+      // Fallback to conversation-only analysis
+      info('✅ Starting analysis with conversation buffer');
       await performLLMAnalysis(currentBuffer);
     } else {
-      info('⚠️ No conversation buffer to analyze');
-      setLlmResponse('No conversation to analyze yet. Start speaking first.');
+      info('⚠️ No content to analyze');
+      setLlmResponse('No question or conversation to analyze. Extract a question from the Chrome extension or start speaking.');
     }
   };
 
@@ -149,6 +165,44 @@ function App() {
     conversationBufferRef.current = '';
     setLlmResponse('Conversation buffer cleared. Ready for follow-up questions.');
     setAnalysisType(null);
+  };
+
+  // Search functionality - now handled by SearchBox component via context
+  const { searchMatches, currentMatchIndex } = useSearch();
+
+  // Helper function to render text with highlights
+  const renderHighlightedText = (text) => {
+    if (searchMatches.length === 0) {
+      return text;
+    }
+
+    const elements = [];
+    let lastIndex = 0;
+
+    searchMatches.forEach((match, index) => {
+      // Add text before match
+      if (match.start > lastIndex) {
+        elements.push(text.substring(lastIndex, match.start));
+      }
+
+      // Add highlighted match
+      const isCurrent = index === currentMatchIndex;
+      elements.push(
+        React.createElement('mark', {
+          key: `highlight-${index}`,
+          className: isCurrent ? 'search-highlight current' : 'search-highlight'
+        }, match.text)
+      );
+
+      lastIndex = match.end;
+    });
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      elements.push(text.substring(lastIndex));
+    }
+
+    return elements;
   };
 
   const startRecording = async () => {
@@ -387,9 +441,20 @@ function App() {
   // Keyboard event listeners
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Allow search input to handle its own events
+      if (e.target.tagName === 'INPUT' && e.target.classList.contains('search-input')) return;
+
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if ((e.key === 's' || e.key === 'S') && !isRecording) startRecording();
       if ((e.key === 'x' || e.key === 'X') && isRecording) stopRecording();
+
+      // Cmd/Ctrl + F to toggle search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        if (window.toggleSearchBox) {
+          window.toggleSearchBox();
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -450,7 +515,7 @@ function App() {
         // Manual Analysis Button (always available)
         React.createElement('button', {
           onClick: handleManualAnalysis,
-          disabled: isAnalyzing || !conversationBufferRef.current?.trim(),
+          disabled: isAnalyzing || (!currentQuestion && !conversationBufferRef.current?.trim()),
           className: 'analyze-btn'
         }, isAnalyzing ? '🔄 Analyzing...' : '🧠 Analyze Conversation'),
 
@@ -484,7 +549,15 @@ function App() {
             info('🎯 Test: Question set manually:', testData.data.problem.title);
           },
           className: 'test-btn'
-        }, '🧪 Test Question')
+        }, '🧪 Test Question'),
+        React.createElement('button', {
+          onClick: () => {
+            // Test search functionality
+            info('🧪 Testing search with "no"...');
+            performSearch('no');
+          },
+          className: 'test-btn'
+        }, '🧪 Test Search')
       ),
       React.createElement('div', { className: 'llm-container' },
         React.createElement('h2', null, 'AI Analysis'),
@@ -519,7 +592,7 @@ function App() {
             '🎯 Analysis based on extracted interview question + conversation context' :
             '💬 Analysis based on conversation only'
         ),
-        isAnalyzing ? React.createElement('p', null, 'Analyzing conversation...') : React.createElement('pre', { className: 'llm-response' }, llmResponse || 'No analysis yet')
+        isAnalyzing ? React.createElement('p', null, 'Analyzing conversation...') : React.createElement('div', { className: 'llm-response' }, renderHighlightedText(llmResponse || DEFAULT_ANALYSIS_MESSAGE))
       )
     ),
     React.createElement('div', { className: 'transcript-container' },
@@ -528,6 +601,10 @@ function App() {
         transcripts.map((entry, idx) => React.createElement(TranscriptEntry, { key: idx, entry }))
       )
     ),
+    React.createElement(SearchBox, {
+      textToSearch: llmResponse || DEFAULT_ANALYSIS_MESSAGE,
+      onClose: () => {} // SearchBox handles its own closing
+    }),
     // Metrics Modal
     showMetricsModal && React.createElement('div', { className: 'modal-overlay', onClick: () => setShowMetricsModal(false) },
       React.createElement('div', { className: 'modal-content', onClick: (e) => e.stopPropagation() },
@@ -543,4 +620,11 @@ function App() {
   );
 }
 
-export { App };
+// Wrapper component with SearchProvider
+function AppWithSearchProvider() {
+  return React.createElement(SearchProvider, null,
+    React.createElement(App, null)
+  );
+}
+
+export { AppWithSearchProvider as App };

@@ -1,3 +1,5 @@
+import React from 'react';
+
 function TranscriptEntryComponent({ entry }) {
   // Handle both old format (just segments) and new format (segments + noiseSegments)
   const meaningfulSegments = entry.segments || [];

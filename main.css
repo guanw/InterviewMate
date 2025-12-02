@@ -107,12 +107,12 @@ small {
   padding: 15px;
   border-radius: 5px;
   white-space: pre-wrap;
-  font-family: monospace;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.5;
   max-height: 400px;
   overflow-y: auto;
-  color: #2c3e50;
+  color: #374151;
   border: 1px solid #dee2e6;
 }
 .bottom-row {
@@ -339,4 +339,100 @@ small {
 .tip-span {
   font-size: 12px;
   color: #666;
+}
+
+/* Search functionality styles */
+.search-overlay {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e5e9;
+  min-width: 300px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.search-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-btn {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  min-width: 28px;
+}
+
+.search-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.search-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-count {
+  font-size: 12px;
+  color: #6b7280;
+  min-width: 60px;
+  text-align: center;
+}
+
+.search-close {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #6b7280;
+  line-height: 1;
+}
+
+.search-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Highlight styles */
+.search-highlight {
+  background-color: #fef3c7;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.search-highlight.current {
+  background-color: #fbbf24;
+  color: #92400e;
 }

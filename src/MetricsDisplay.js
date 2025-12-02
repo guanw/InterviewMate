@@ -1,3 +1,5 @@
+import React from 'react';
+
 export function MetricsDisplay({ metrics, onClearMetrics }) {
   if (!metrics) return null;
 
