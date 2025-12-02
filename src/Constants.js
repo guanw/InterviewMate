@@ -1,5 +1,3 @@
-// Audio Configuration Constants
-
 // ES6 exports (for React/frontend)
 export const SAMPLE_RATE = 16000;
 export const CHANNELS = 1;

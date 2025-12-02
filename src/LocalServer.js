@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { log } = require('./Logging.js');
+const { IPC_INTERVIEW_QUESTION_RECEIVED } = require('./IPCConstants.js');
 
 class LocalServer {
   constructor(ipcMain) {
@@ -106,7 +107,7 @@ class LocalServer {
       // Send to renderer via IPC
       if (this.mainWindow) {
         log('📤 Sending IPC event to renderer: interview-question-received');
-        this.mainWindow.webContents.send('interview-question-received', {
+        this.mainWindow.webContents.send(IPC_INTERVIEW_QUESTION_RECEIVED, {
           type: 'interview-question-question',
           timestamp: data.timestamp,
           extensionId: data.extensionId,
