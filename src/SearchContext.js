@@ -27,11 +27,25 @@ export function SearchProvider({ children }) {
     setCurrentMatchIndex(-1);
   };
 
+  const goToNextMatch = () => {
+    if (searchMatches.length === 0) return;
+    const nextIndex = (currentMatchIndex + 1) % searchMatches.length;
+    setCurrentMatchIndex(nextIndex);
+  };
+
+  const goToPreviousMatch = () => {
+    if (searchMatches.length === 0) return;
+    const prevIndex = currentMatchIndex <= 0 ? searchMatches.length - 1 : currentMatchIndex - 1;
+    setCurrentMatchIndex(prevIndex);
+  };
+
   const value = {
     searchMatches,
     currentMatchIndex,
     updateSearchResults,
-    clearSearch
+    clearSearch,
+    goToNextMatch,
+    goToPreviousMatch
   };
 
   return React.createElement(SearchContext.Provider, { value }, children);

@@ -4,7 +4,7 @@ import { useSearch } from './SearchContext.js';
 function SearchBox({ textToSearch, onClose }) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { searchMatches, currentMatchIndex, updateSearchResults } = useSearch();
+  const { searchMatches, currentMatchIndex, updateSearchResults, goToNextMatch, goToPreviousMatch } = useSearch();
 
   // Perform search when query or text changes
   useEffect(() => {
@@ -33,7 +33,7 @@ function SearchBox({ textToSearch, onClose }) {
 
     const newIndex = matches.length > 0 ? 0 : -1;
     updateSearchResults(matches, newIndex);
-  }, [searchQuery, textToSearch, updateSearchResults]);
+  }, [searchQuery, textToSearch]);
 
   const handleInputChange = (e) => {
     setSearchQuery(e.target.value);
@@ -47,17 +47,6 @@ function SearchBox({ textToSearch, onClose }) {
     }
   };
 
-  const goToNextMatch = () => {
-    if (searchMatches.length === 0) return;
-    const nextIndex = (currentMatchIndex + 1) % searchMatches.length;
-    updateSearchResults(searchMatches, nextIndex);
-  };
-
-  const goToPreviousMatch = () => {
-    if (searchMatches.length === 0) return;
-    const prevIndex = currentMatchIndex <= 0 ? searchMatches.length - 1 : currentMatchIndex - 1;
-    updateSearchResults(searchMatches, prevIndex);
-  };
 
   const closeSearch = () => {
     setShowSearch(false);
@@ -94,7 +83,7 @@ function SearchBox({ textToSearch, onClose }) {
       React.createElement('div', { className: 'search-controls' },
         React.createElement('button', {
           className: 'search-btn',
-          onClick: onPreviousMatch,
+          onClick: goToPreviousMatch,
           disabled: searchMatches.length === 0,
           title: 'Previous match (Shift+Enter)'
         }, '↑'),
@@ -103,7 +92,7 @@ function SearchBox({ textToSearch, onClose }) {
         ),
         React.createElement('button', {
           className: 'search-btn',
-          onClick: onNextMatch,
+          onClick: goToNextMatch,
           disabled: searchMatches.length === 0,
           title: 'Next match (Enter)'
         }, '↓'),
