@@ -15,6 +15,9 @@ const VADManager = require('./src/VADManager.js');
 // Import centralized logging
 const { log: info, error: logError } = require('./src/Logging.js');
 
+// Import response cache
+const { responseCache } = require('./src/ResponseCache.js');
+
 // Import IPC constants
 const {
   IPC_TRANSCRIBE_AUDIO,
@@ -26,7 +29,9 @@ const {
   IPC_GET_SERVER_STATUS,
   IPC_RESTART_SERVER,
   IPC_SHOW_METRICS,
-  IPC_CLEAR_INTERVIEW_DATA
+  IPC_CLEAR_INTERVIEW_DATA,
+  IPC_GET_CACHE_STATS,
+  IPC_CLEAR_CACHE
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -224,6 +229,7 @@ ipcMain.handle(IPC_ANALYZE_CONVERSATION, async (_, conversationBuffer, forceNewA
         }
 
         let prompt = '';
+        let cacheKey = '';
 
         if (hasInterviewData) {
             // Priority 1: Analyze extracted interview question
@@ -265,13 +271,32 @@ ${conversationBuffer && conversationBuffer.trim() ? `**FOLLOW-UP CONTEXT FROM CO
 
 IMPORTANT: Always provide code solutions in PYTHON, regardless of any starting code language detected.`;
 
+            // Create cache key from the question content
+            cacheKey = `${problemTitle}\n${problemDescription}\n${codeInfo}`;
+
         } else {
             // Fallback: Original conversationBuffer-only analysis
             info('🔄 Using conversationBuffer-only analysis (no extracted interview data)');
             prompt = `Analyze this technical interview conversation. If the last part is a question, provide a detailed solution with PYTHON code examples.\n\nConversation:\n${conversationBuffer}`;
+            cacheKey = conversationBuffer || '';
         }
 
-        info('Sending prompt to LLM...');
+        // Check cache first (unless force new analysis is requested)
+        if (!forceNewAnalysis) {
+            const cachedResult = responseCache.findSimilar(cacheKey);
+            if (cachedResult) {
+                info('✅ Cache hit! Returning cached analysis');
+                return {
+                    success: true,
+                    response: cachedResult.response,
+                    analysisType: hasInterviewData ? 'interview-metadata-priority' : 'conversation-buffer-only',
+                    cached: true,
+                    cacheHit: true
+                };
+            }
+        }
+
+        info('Cache miss or forced analysis, sending prompt to LLM...');
         const completion = await llm.chat.completions.create({
             model: 'qwen3-max-2025-09-23',
             messages: [{ role: 'user', content: prompt }],
@@ -281,10 +306,19 @@ IMPORTANT: Always provide code solutions in PYTHON, regardless of any starting c
         const response = completion.choices[0].message.content;
         info('LLM analysis completed successfully');
 
+        // Cache the result
+        responseCache.store(cacheKey, response, {
+            analysisType: hasInterviewData ? 'interview-metadata-priority' : 'conversation-buffer-only',
+            hasInterviewData,
+            promptLength: prompt.length
+        });
+
         return {
             success: true,
             response,
-            analysisType: hasInterviewData ? 'interview-metadata-priority' : 'conversation-buffer-only'
+            analysisType: hasInterviewData ? 'interview-metadata-priority' : 'conversation-buffer-only',
+            cached: false,
+            cacheHit: false
         };
 
     } catch (error) {
@@ -391,5 +425,27 @@ ipcMain.handle(IPC_GET_VAD_STATS, async () => {
   } catch (error) {
     logError('VAD stats error:', error);
     return null;
+  }
+});
+
+// Cache management IPC handlers
+ipcMain.handle(IPC_GET_CACHE_STATS, async () => {
+  try {
+    return responseCache.getStats();
+  } catch (error) {
+    logError('Cache stats error:', error);
+    return { error: error.message };
+  }
+});
+
+ipcMain.handle(IPC_CLEAR_CACHE, async () => {
+  try {
+    const statsBefore = responseCache.getStats();
+    responseCache.clear();
+    info(`Cache cleared: removed ${statsBefore.size} entries`);
+    return { success: true, removedCount: statsBefore.size };
+  } catch (error) {
+    logError('Cache clear error:', error);
+    return { success: false, error: error.message };
   }
 });

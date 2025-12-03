@@ -78,6 +78,8 @@ function App() {
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null); // Track extracted interview question
   const [analysisType, setAnalysisType] = useState(null); // Track what type of analysis was performed
+  const [cacheStats, setCacheStats] = useState(null); // Cache statistics
+  const [lastAnalysisCached, setLastAnalysisCached] = useState(false); // Track if last analysis was from cache
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
@@ -90,16 +92,26 @@ function App() {
     setIsAnalyzing(true);
     try {
       const llmStart = performance.now();
-      const { success, response, error, analysisType: returnedAnalysisType } = await window.electronAPI.analyzeConversation(buffer);
+      const result = await window.electronAPI.analyzeConversation(buffer);
       const llmEnd = performance.now();
-      metricsManagerRef.current.trackLLMAnalysis(llmStart, llmEnd, buffer.length);
 
-      if (success) {
-        setLlmResponse(response);
-        setAnalysisType(returnedAnalysisType);
+      // Track cache hit status
+      setLastAnalysisCached(result.cached || false);
+
+      if (result.success) {
+        setLlmResponse(result.response);
+        setAnalysisType(result.analysisType);
+
+        // Update cache stats after analysis
+        await updateCacheStats();
+
+        // Only track metrics for actual LLM calls (not cache hits)
+        if (!result.cached) {
+          metricsManagerRef.current.trackLLMAnalysis(llmStart, llmEnd, buffer.length);
+        }
       } else {
-        logError('LLM error:', error);
-        setLlmResponse(`Error: ${error}`);
+        logError('LLM error:', result.error);
+        setLlmResponse(`Error: ${result.error}`);
         setAnalysisType(null);
       }
     } catch (err) {
@@ -153,6 +165,11 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Initialize cache stats
+  useEffect(() => {
+    updateCacheStats();
+  }, []);
+
   // Function to clear metrics
   const clearMetrics = () => {
     metricsManagerRef.current.clearMetrics();
@@ -165,6 +182,30 @@ function App() {
     conversationBufferRef.current = '';
     setLlmResponse('Conversation buffer cleared. Ready for follow-up questions.');
     setAnalysisType(null);
+  };
+
+  // Cache management functions
+  const updateCacheStats = async () => {
+    try {
+      const stats = await window.electronAPI.getCacheStats();
+      setCacheStats(stats);
+    } catch (error) {
+      logError('Error getting cache stats:', error);
+    }
+  };
+
+  const clearCache = async () => {
+    try {
+      const result = await window.electronAPI.clearCache();
+      if (result.success) {
+        info(`Cache cleared: removed ${result.removedCount} entries`);
+        await updateCacheStats();
+      } else {
+        logError('Error clearing cache:', result.error);
+      }
+    } catch (error) {
+      logError('Error clearing cache:', error);
+    }
   };
 
   // Search functionality - now handled by SearchBox component via context
@@ -519,15 +560,26 @@ function App() {
           className: 'analyze-btn'
         }, isAnalyzing ? '🔄 Analyzing...' : '🧠 Analyze Conversation'),
 
+        React.createElement('div', { className: 'status' }, status),
+
         React.createElement('button', {
           onClick: clearConversationBuffer,
           disabled: isAnalyzing,
           className: 'clear-btn'
         }, '🧹 Clear Conversation'),
-
-        React.createElement('div', { className: 'status' }, status),
         React.createElement('div', { className: 'buffer-display' }, `Buffer: ${conversationBufferRef.current.length} chars`),
         React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop'),
+
+        // Cache status and controls
+        cacheStats && React.createElement('div', { className: 'cache-status' },
+          React.createElement('span', null, `Cache: ${cacheStats.size}/${cacheStats.maxSize}`),
+          lastAnalysisCached && React.createElement('span', { className: 'cache-hit-indicator' }, '⚡ Cached'),
+          React.createElement('button', {
+            onClick: clearCache,
+            className: 'clear-cache-btn',
+            title: 'Clear analysis cache'
+          }, '🗑️')
+        ),
         // Test button for interview data
         React.createElement('button', {
           onClick: () => {
@@ -550,14 +602,6 @@ function App() {
           },
           className: 'test-btn'
         }, '🧪 Test Question'),
-        React.createElement('button', {
-          onClick: () => {
-            // Test search functionality
-            info('🧪 Testing search with "no"...');
-            performSearch('no');
-          },
-          className: 'test-btn'
-        }, '🧪 Test Search')
       ),
       React.createElement('div', { className: 'llm-container' },
         React.createElement('h2', null, 'AI Analysis'),

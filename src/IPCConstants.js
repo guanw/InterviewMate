@@ -12,6 +12,8 @@ const IPC_RESTART_SERVER = 'restart-server';
 const IPC_SHOW_METRICS = 'show-metrics';
 const IPC_INTERVIEW_QUESTION_RECEIVED = 'interview-question-received';
 const IPC_CLEAR_INTERVIEW_DATA = 'clear-interview-data';
+const IPC_GET_CACHE_STATS = 'get-cache-stats';
+const IPC_CLEAR_CACHE = 'clear-cache';
 
 module.exports = {
   IPC_TRANSCRIBE_AUDIO,
@@ -24,5 +26,7 @@ module.exports = {
   IPC_RESTART_SERVER,
   IPC_SHOW_METRICS,
   IPC_INTERVIEW_QUESTION_RECEIVED,
-  IPC_CLEAR_INTERVIEW_DATA
+  IPC_CLEAR_INTERVIEW_DATA,
+  IPC_GET_CACHE_STATS,
+  IPC_CLEAR_CACHE
 };

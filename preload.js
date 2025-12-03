@@ -11,7 +11,9 @@ const {
   IPC_RESTART_SERVER,
   IPC_SHOW_METRICS,
   IPC_INTERVIEW_QUESTION_RECEIVED,
-  IPC_CLEAR_INTERVIEW_DATA
+  IPC_CLEAR_INTERVIEW_DATA,
+  IPC_GET_CACHE_STATS,
+  IPC_CLEAR_CACHE
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -45,5 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Clear interview data
-  clearInterviewData: () => ipcRenderer.invoke(IPC_CLEAR_INTERVIEW_DATA)
+  clearInterviewData: () => ipcRenderer.invoke(IPC_CLEAR_INTERVIEW_DATA),
+
+  // Cache management
+  getCacheStats: () => ipcRenderer.invoke(IPC_GET_CACHE_STATS),
+  clearCache: () => ipcRenderer.invoke(IPC_CLEAR_CACHE)
 });
