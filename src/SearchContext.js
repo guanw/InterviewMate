@@ -31,12 +31,42 @@ export function SearchProvider({ children }) {
     if (searchMatches.length === 0) return;
     const nextIndex = (currentMatchIndex + 1) % searchMatches.length;
     setCurrentMatchIndex(nextIndex);
+    scrollToMatch(nextIndex);
   };
 
   const goToPreviousMatch = () => {
     if (searchMatches.length === 0) return;
     const prevIndex = currentMatchIndex <= 0 ? searchMatches.length - 1 : currentMatchIndex - 1;
     setCurrentMatchIndex(prevIndex);
+    scrollToMatch(prevIndex);
+  };
+
+  const scrollToMatch = (index) => {
+    if (index < 0 || index >= searchMatches.length) return;
+
+    // Find the highlighted mark element for this match
+    const markElements = document.querySelectorAll('.search-highlight.current');
+    if (markElements.length > 0) {
+      const targetElement = markElements[0]; // Should be the current match
+      targetElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest'
+      });
+    } else {
+      // Fallback: scroll the container to show highlighted content
+      const llmContainer = document.querySelector('.llm-container');
+      if (llmContainer) {
+        const highlightedElements = llmContainer.querySelectorAll('.search-highlight');
+        if (highlightedElements.length > index) {
+          highlightedElements[index].scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
+      }
+    }
   };
 
   const value = {

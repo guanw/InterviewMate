@@ -5,6 +5,7 @@ function SearchBox({ textToSearch, onClose }) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { searchMatches, currentMatchIndex, updateSearchResults, goToNextMatch, goToPreviousMatch } = useSearch();
+  const inputRef = React.useRef(null);
 
   // Perform search when query or text changes
   useEffect(() => {
@@ -34,6 +35,13 @@ function SearchBox({ textToSearch, onClose }) {
     const newIndex = matches.length > 0 ? 0 : -1;
     updateSearchResults(matches, newIndex);
   }, [searchQuery, textToSearch]);
+
+  // Auto-focus input when search becomes visible
+  useEffect(() => {
+    if (showSearch && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [showSearch]);
 
   const handleInputChange = (e) => {
     setSearchQuery(e.target.value);
@@ -78,7 +86,8 @@ function SearchBox({ textToSearch, onClose }) {
         placeholder: 'Search in AI analysis...',
         value: searchQuery,
         onChange: handleInputChange,
-        onKeyDown: handleKeyDown
+        onKeyDown: handleKeyDown,
+        ref: inputRef
       }),
       React.createElement('div', { className: 'search-controls' },
         React.createElement('button', {
