@@ -80,6 +80,8 @@ function App() {
   const [analysisType, setAnalysisType] = useState(null); // Track what type of analysis was performed
   const [cacheStats, setCacheStats] = useState(null); // Cache statistics
   const [lastAnalysisCached, setLastAnalysisCached] = useState(false); // Track if last analysis was from cache
+  const [llmProviders, setLLMProviders] = useState(null); // Available LLM providers
+  const [currentLLMProvider, setCurrentLLMProvider] = useState(null); // Current LLM provider
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
@@ -165,9 +167,10 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Initialize cache stats
+  // Initialize cache stats and LLM providers
   useEffect(() => {
     updateCacheStats();
+    loadLLMProviders();
   }, []);
 
   // Function to clear metrics
@@ -205,6 +208,33 @@ function App() {
       }
     } catch (error) {
       logError('Error clearing cache:', error);
+    }
+  };
+
+  // LLM Provider management functions
+  const loadLLMProviders = async () => {
+    try {
+      const providers = await window.electronAPI.getLLMProviders();
+      setLLMProviders(providers);
+      setCurrentLLMProvider(providers.current);
+    } catch (error) {
+      logError('Error loading LLM providers:', error);
+    }
+  };
+
+  const switchLLMProvider = async (providerName) => {
+    try {
+      const result = await window.electronAPI.switchLLMProvider(providerName);
+      if (result.success) {
+        setCurrentLLMProvider(result.current);
+        // Also update the providers list to reflect the change
+        setLLMProviders(prev => prev ? { ...prev, current: result.current } : null);
+        info(`Switched to LLM provider: ${providerName} (${result.current?.model})`);
+      } else {
+        logError('Error switching LLM provider:', result.error);
+      }
+    } catch (error) {
+      logError('Error switching LLM provider:', error);
     }
   };
 
@@ -580,6 +610,23 @@ function App() {
             title: 'Clear analysis cache'
           }, '🗑️')
         ),
+
+        // LLM Provider selector
+        currentLLMProvider && React.createElement('div', { className: 'llm-provider-selector' },
+          React.createElement('span', null, `LLM: ${currentLLMProvider.key || currentLLMProvider.name.toLowerCase().replace('provider', '')} (${currentLLMProvider.model})`),
+          llmProviders && llmProviders.available.length > 1 && React.createElement('select', {
+            value: currentLLMProvider.key || currentLLMProvider.name.toLowerCase().replace('provider', ''),
+            onChange: (e) => switchLLMProvider(e.target.value),
+            className: 'llm-provider-select'
+          },
+            llmProviders.available.map(provider =>
+              React.createElement('option', { key: provider, value: provider },
+                provider.charAt(0).toUpperCase() + provider.slice(1)
+              )
+            )
+          )
+        ),
+
         // Test button for interview data
         React.createElement('button', {
           onClick: () => {

@@ -1,20 +1,17 @@
 /**
  * LLM Processing Module
- * Handles conversation analysis using OpenAI API with caching
+ * Handles conversation analysis using modular LLM providers with caching
  */
 
-const OpenAI = require('openai');
-const { responseCache } = require('./ResponseCache.js');
+const { responseCache } = require('../ResponseCache.js');
+const { llmManager } = require('./LLMManager.js');
+const llmConfig = require('./config.js');
 
 // Import centralized logging
-const { log: info, error: logError } = require('./src/Logging.js');
+const { log: info, error: logError } = require('../src/Logging.js');
 
-// Initialize OpenAI client
-const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
-const llm = new OpenAI({
-    apiKey: DASHSCOPE_API_KEY,
-    baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
-});
+// Initialize LLM manager with configuration
+llmManager.initialize(llmConfig);
 
 /**
  * Analyze conversation using LLM with caching
@@ -106,13 +103,7 @@ IMPORTANT: Always provide code solutions in PYTHON, regardless of any starting c
         }
 
         info('Cache miss or forced analysis, sending prompt to LLM...');
-        const completion = await llm.chat.completions.create({
-            model: 'qwen3-max-2025-09-23',
-            messages: [{ role: 'user', content: prompt }],
-            stream: false
-        });
-
-        const response = completion.choices[0].message.content;
+        const response = await llmManager.analyze(prompt);
         info('LLM analysis completed successfully');
 
         // Cache the result

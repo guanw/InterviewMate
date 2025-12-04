@@ -16,7 +16,8 @@ const VADManager = require('./src/VADManager.js');
 const { log: info, error: logError } = require('./src/Logging.js');
 
 // Import LLM processing
-const { analyzeConversation } = require('./LLM.js');
+const { analyzeConversation } = require('./llm/LLM.js');
+const { llmManager } = require('./llm/LLMManager.js');
 
 // Import IPC constants
 const {
@@ -31,7 +32,10 @@ const {
   IPC_SHOW_METRICS,
   IPC_CLEAR_INTERVIEW_DATA,
   IPC_GET_CACHE_STATS,
-  IPC_CLEAR_CACHE
+  IPC_CLEAR_CACHE,
+  IPC_GET_LLM_PROVIDERS,
+  IPC_SWITCH_LLM_PROVIDER,
+  IPC_GET_CURRENT_LLM_PROVIDER
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -337,5 +341,40 @@ ipcMain.handle(IPC_CLEAR_CACHE, async () => {
   } catch (error) {
     logError('Cache clear error:', error);
     return { success: false, error: error.message };
+  }
+});
+
+// LLM Provider management IPC handlers
+ipcMain.handle(IPC_GET_LLM_PROVIDERS, async () => {
+  try {
+    return {
+      available: llmManager.getAvailableProviders(),
+      current: llmManager.getCurrentProviderInfo()
+    };
+  } catch (error) {
+    logError('Get LLM providers error:', error);
+    return { error: error.message };
+  }
+});
+
+ipcMain.handle(IPC_SWITCH_LLM_PROVIDER, async (_, providerName) => {
+  try {
+    const success = llmManager.switchProvider(providerName);
+    return {
+      success,
+      current: success ? llmManager.getCurrentProviderInfo() : null
+    };
+  } catch (error) {
+    logError('Switch LLM provider error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(IPC_GET_CURRENT_LLM_PROVIDER, async () => {
+  try {
+    return llmManager.getCurrentProviderInfo();
+  } catch (error) {
+    logError('Get current LLM provider error:', error);
+    return { error: error.message };
   }
 });

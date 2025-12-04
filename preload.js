@@ -13,7 +13,10 @@ const {
   IPC_INTERVIEW_QUESTION_RECEIVED,
   IPC_CLEAR_INTERVIEW_DATA,
   IPC_GET_CACHE_STATS,
-  IPC_CLEAR_CACHE
+  IPC_CLEAR_CACHE,
+  IPC_GET_LLM_PROVIDERS,
+  IPC_SWITCH_LLM_PROVIDER,
+  IPC_GET_CURRENT_LLM_PROVIDER
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -51,5 +54,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Cache management
   getCacheStats: () => ipcRenderer.invoke(IPC_GET_CACHE_STATS),
-  clearCache: () => ipcRenderer.invoke(IPC_CLEAR_CACHE)
+  clearCache: () => ipcRenderer.invoke(IPC_CLEAR_CACHE),
+
+  // LLM Provider management
+  getLLMProviders: () => ipcRenderer.invoke(IPC_GET_LLM_PROVIDERS),
+  switchLLMProvider: (providerName) => ipcRenderer.invoke(IPC_SWITCH_LLM_PROVIDER, providerName),
+  getCurrentLLMProvider: () => ipcRenderer.invoke(IPC_GET_CURRENT_LLM_PROVIDER)
 });
