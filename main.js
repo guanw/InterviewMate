@@ -1,4 +1,6 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, globalShortcut, screen } = require('electron');
+console.log('Electron app imported:', typeof app, app ? 'defined' : 'undefined');
+
 const { whisper } = require('whisper-node');
 const path = require('path');
 const fs = require('fs');
@@ -35,7 +37,9 @@ const {
   IPC_CLEAR_CACHE,
   IPC_GET_LLM_PROVIDERS,
   IPC_SWITCH_LLM_PROVIDER,
-  IPC_GET_CURRENT_LLM_PROVIDER
+  IPC_GET_CURRENT_LLM_PROVIDER,
+  IPC_MOVE_WINDOW,
+  IPC_RANDOMIZE_WINDOW_POSITION
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -159,6 +163,67 @@ app.whenReady().then(() => {
 
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
+
+  // Register global shortcuts for window movement
+  const registerWindowShortcuts = () => {
+    // Movement step size (pixels)
+    const MOVE_STEP = 50;
+
+    // Get screen bounds for bounds checking
+    const getScreenBounds = () => {
+      const primaryDisplay = screen.getPrimaryDisplay();
+      return primaryDisplay.workArea; // Use work area to avoid taskbar/dock
+    };
+
+    // Move window function with bounds checking
+    const moveWindow = (deltaX, deltaY) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+
+      const [currentX, currentY] = mainWindow.getPosition();
+      const screenBounds = getScreenBounds();
+      const [width, height] = mainWindow.getSize();
+
+      // Calculate new position
+      let newX = currentX + deltaX;
+      let newY = currentY + deltaY;
+
+      // Keep window within screen bounds
+      newX = Math.max(screenBounds.x, Math.min(newX, screenBounds.x + screenBounds.width - width));
+      newY = Math.max(screenBounds.y, Math.min(newY, screenBounds.y + screenBounds.height - height));
+
+      mainWindow.setPosition(newX, newY);
+    };
+
+    // Register movement shortcuts
+    globalShortcut.register('CmdOrCtrl+Up', () => moveWindow(0, -MOVE_STEP));
+    globalShortcut.register('CmdOrCtrl+Down', () => moveWindow(0, MOVE_STEP));
+    globalShortcut.register('CmdOrCtrl+Left', () => moveWindow(-MOVE_STEP, 0));
+    globalShortcut.register('CmdOrCtrl+Right', () => moveWindow(MOVE_STEP, 0));
+
+    // Register random positioning shortcut
+    globalShortcut.register('CmdOrCtrl+M', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+
+      const screenBounds = screen.getPrimaryDisplay().workArea;
+      const [width, height] = mainWindow.getSize();
+
+      // Calculate available area (accounting for window size)
+      const availableWidth = screenBounds.width - width;
+      const availableHeight = screenBounds.height - height;
+
+      // Generate random position within bounds
+      const randomX = screenBounds.x + Math.floor(Math.random() * availableWidth);
+      const randomY = screenBounds.y + Math.floor(Math.random() * availableHeight);
+
+      mainWindow.setPosition(randomX, randomY);
+      info(`Window randomized via shortcut to position: (${randomX}, ${randomY})`);
+    });
+
+    info('Window movement shortcuts registered: Cmd/Ctrl + Arrow Keys, Cmd/Ctrl + M (randomize)');
+  };
+
+  // Register the shortcuts
+  registerWindowShortcuts();
 });
 
 ipcMain.handle(IPC_TRANSCRIBE_AUDIO, async (_, audioBuffer) => {
@@ -208,6 +273,9 @@ app.on('window-all-closed', () => {
 
 // Stop server when app is quitting
 app.on('will-quit', () => {
+  // Unregister global shortcuts
+  globalShortcut.unregisterAll();
+
   if (localServer) {
     localServer.stop();
   }
@@ -376,5 +444,78 @@ ipcMain.handle(IPC_GET_CURRENT_LLM_PROVIDER, async () => {
   } catch (error) {
     logError('Get current LLM provider error:', error);
     return { error: error.message };
+  }
+});
+
+// Window movement IPC handlers
+ipcMain.handle(IPC_MOVE_WINDOW, async (_, direction) => {
+  try {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { success: false, error: 'Window not available' };
+    }
+
+    const MOVE_STEP = 50;
+    const screenBounds = screen.getPrimaryDisplay().workArea;
+    const [currentX, currentY] = mainWindow.getPosition();
+    const [width, height] = mainWindow.getSize();
+
+    let deltaX = 0, deltaY = 0;
+
+    switch (direction) {
+      case 'up':
+        deltaY = -MOVE_STEP;
+        break;
+      case 'down':
+        deltaY = MOVE_STEP;
+        break;
+      case 'left':
+        deltaX = -MOVE_STEP;
+        break;
+      case 'right':
+        deltaX = MOVE_STEP;
+        break;
+      default:
+        return { success: false, error: 'Invalid direction' };
+    }
+
+    // Calculate new position with bounds checking
+    let newX = currentX + deltaX;
+    let newY = currentY + deltaY;
+
+    // Keep window within screen bounds
+    newX = Math.max(screenBounds.x, Math.min(newX, screenBounds.x + screenBounds.width - width));
+    newY = Math.max(screenBounds.y, Math.min(newY, screenBounds.y + screenBounds.height - height));
+
+    mainWindow.setPosition(newX, newY);
+    return { success: true, position: { x: newX, y: newY } };
+  } catch (error) {
+    logError('Move window error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(IPC_RANDOMIZE_WINDOW_POSITION, async () => {
+  try {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { success: false, error: 'Window not available' };
+    }
+
+    const screenBounds = screen.getPrimaryDisplay().workArea;
+    const [width, height] = mainWindow.getSize();
+
+    // Calculate available area (accounting for window size)
+    const availableWidth = screenBounds.width - width;
+    const availableHeight = screenBounds.height - height;
+
+    // Generate random position within bounds
+    const randomX = screenBounds.x + Math.floor(Math.random() * availableWidth);
+    const randomY = screenBounds.y + Math.floor(Math.random() * availableHeight);
+
+    mainWindow.setPosition(randomX, randomY);
+    info(`Window randomized to position: (${randomX}, ${randomY})`);
+    return { success: true, position: { x: randomX, y: randomY } };
+  } catch (error) {
+    logError('Randomize window position error:', error);
+    return { success: false, error: error.message };
   }
 });

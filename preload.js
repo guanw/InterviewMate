@@ -16,7 +16,9 @@ const {
   IPC_CLEAR_CACHE,
   IPC_GET_LLM_PROVIDERS,
   IPC_SWITCH_LLM_PROVIDER,
-  IPC_GET_CURRENT_LLM_PROVIDER
+  IPC_GET_CURRENT_LLM_PROVIDER,
+  IPC_MOVE_WINDOW,
+  IPC_RANDOMIZE_WINDOW_POSITION
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -59,5 +61,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // LLM Provider management
   getLLMProviders: () => ipcRenderer.invoke(IPC_GET_LLM_PROVIDERS),
   switchLLMProvider: (providerName) => ipcRenderer.invoke(IPC_SWITCH_LLM_PROVIDER, providerName),
-  getCurrentLLMProvider: () => ipcRenderer.invoke(IPC_GET_CURRENT_LLM_PROVIDER)
+  getCurrentLLMProvider: () => ipcRenderer.invoke(IPC_GET_CURRENT_LLM_PROVIDER),
+
+  // Window movement
+  moveWindow: (direction) => ipcRenderer.invoke(IPC_MOVE_WINDOW, direction),
+  randomizeWindowPosition: () => ipcRenderer.invoke(IPC_RANDOMIZE_WINDOW_POSITION)
 });

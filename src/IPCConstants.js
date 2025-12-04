@@ -17,6 +17,8 @@ const IPC_CLEAR_CACHE = 'clear-cache';
 const IPC_GET_LLM_PROVIDERS = 'get-llm-providers';
 const IPC_SWITCH_LLM_PROVIDER = 'switch-llm-provider';
 const IPC_GET_CURRENT_LLM_PROVIDER = 'get-current-llm-provider';
+const IPC_MOVE_WINDOW = 'move-window';
+const IPC_RANDOMIZE_WINDOW_POSITION = 'randomize-window-position';
 
 module.exports = {
   IPC_TRANSCRIBE_AUDIO,
@@ -34,5 +36,7 @@ module.exports = {
   IPC_CLEAR_CACHE,
   IPC_GET_LLM_PROVIDERS,
   IPC_SWITCH_LLM_PROVIDER,
-  IPC_GET_CURRENT_LLM_PROVIDER
+  IPC_GET_CURRENT_LLM_PROVIDER,
+  IPC_MOVE_WINDOW,
+  IPC_RANDOMIZE_WINDOW_POSITION
 };
