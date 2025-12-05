@@ -10,9 +10,10 @@ class LLMProvider {
   /**
    * Analyze conversation using this provider
    * @param {string} prompt - The prompt to send to the LLM
+   * @param {Object} options - Optional parameters (temperature, maxTokens, etc.)
    * @returns {Promise<string>} The LLM response
    */
-  async analyze(prompt) {
+  async analyze(prompt, options = {}) {
     throw new Error('analyze method must be implemented by provider');
   }
 

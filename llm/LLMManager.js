@@ -113,17 +113,48 @@ class LLMManager {
   /**
    * Analyze text using current provider
    */
-  async analyze(prompt) {
+  async analyze(prompt, options = {}) {
     if (!this.currentProvider) {
       throw new Error('No LLM provider available');
     }
 
     try {
       info(`🤖 Analyzing with ${this.currentProvider.name} (${this.currentProvider.info.model})`);
-      return await this.currentProvider.analyze(prompt);
+      return await this.currentProvider.analyze(prompt, options);
     } catch (err) {
       logError(`❌ LLM analysis failed with ${this.currentProvider.name}:`, err.message);
       throw err;
+    }
+  }
+
+  /**
+   * Analyze text using a specific provider temporarily
+   */
+  async analyzeWithProvider(providerName, prompt, options = {}) {
+    if (!this.providers.has(providerName)) {
+      throw new Error(`Provider '${providerName}' not available`);
+    }
+
+    const originalProvider = this.currentProvider;
+    const originalProviderKey = this.currentProviderKey;
+
+    try {
+      // Temporarily switch provider
+      this.currentProvider = this.providers.get(providerName);
+      this.currentProviderKey = providerName;
+
+      info(`🔄 Temporarily analyzing with ${providerName} (${this.currentProvider.info.model})`);
+      const result = await this.currentProvider.analyze(prompt, options);
+
+      return result;
+    } catch (err) {
+      logError(`❌ Temporary analysis failed with ${providerName}:`, err.message);
+      throw err;
+    } finally {
+      // Always restore original provider
+      this.currentProvider = originalProvider;
+      this.currentProviderKey = originalProviderKey;
+      info(`🔄 Restored to original provider: ${originalProviderKey}`);
     }
   }
 }

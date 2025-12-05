@@ -39,7 +39,8 @@ const {
   IPC_SWITCH_LLM_PROVIDER,
   IPC_GET_CURRENT_LLM_PROVIDER,
   IPC_MOVE_WINDOW,
-  IPC_RANDOMIZE_WINDOW_POSITION
+  IPC_RANDOMIZE_WINDOW_POSITION,
+  IPC_SET_TEST_INTERVIEW_DATA
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -331,6 +332,21 @@ ipcMain.handle(IPC_CLEAR_INTERVIEW_DATA, async () => {
     }
   } catch (error) {
     logError('Error clearing interview data:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(IPC_SET_TEST_INTERVIEW_DATA, async (_, testData) => {
+  try {
+    if (localServer) {
+      // Simulate the LocalServer receiving data like it would from the Chrome extension
+      localServer.handleInterviewData(testData);
+      return { success: true, message: 'Test interview data set successfully' };
+    } else {
+      return { success: false, error: 'Local server not available' };
+    }
+  } catch (error) {
+    logError('Error setting test interview data:', error);
     return { success: false, error: error.message };
   }
 });

@@ -82,6 +82,7 @@ function App() {
   const [lastAnalysisCached, setLastAnalysisCached] = useState(false); // Track if last analysis was from cache
   const [llmProviders, setLLMProviders] = useState(null); // Available LLM providers
   const [currentLLMProvider, setCurrentLLMProvider] = useState(null); // Current LLM provider
+  const [compressionInfo, setCompressionInfo] = useState(null); // Compression information
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
@@ -103,6 +104,7 @@ function App() {
       if (result.success) {
         setLlmResponse(result.response);
         setAnalysisType(result.analysisType);
+        setCompressionInfo(result.compressionInfo);
 
         // Update cache stats after analysis
         await updateCacheStats();
@@ -185,6 +187,7 @@ function App() {
     conversationBufferRef.current = '';
     setLlmResponse('Conversation buffer cleared. Ready for follow-up questions.');
     setAnalysisType(null);
+    setCompressionInfo(null);
   };
 
   // Cache management functions
@@ -629,7 +632,7 @@ function App() {
 
         // Test button for interview data
         React.createElement('button', {
-          onClick: () => {
+          onClick: async () => {
             // Simulate receiving interview data for testing
             const testData = {
               type: 'interview-question-question',
@@ -642,10 +645,19 @@ function App() {
                 }
               }
             };
-            info('🧪 Test: Simulating interview data reception...');
-            // This would normally be triggered by the actual event system
-            setCurrentQuestion(testData.data.problem);
-            info('🎯 Test: Question set manually:', testData.data.problem.title);
+            info('🧪 Test: Setting test interview data...');
+
+            try {
+              // Use the new IPC method to set test data in LocalServer
+              const result = await window.electronAPI.setTestInterviewData(testData);
+              if (result.success) {
+                info('🎯 Test: Interview data set successfully in both frontend and backend');
+              } else {
+                logError('Error setting test data:', result.error);
+              }
+            } catch (error) {
+              logError('Error setting test interview data:', error);
+            }
           },
           className: 'test-btn'
         }, '🧪 Test Question'),
@@ -682,6 +694,12 @@ function App() {
           analysisType === 'interview-metadata-priority' ?
             '🎯 Analysis based on extracted interview question + conversation context' :
             '💬 Analysis based on conversation only'
+        ),
+        // Compression info indicator
+        compressionInfo && React.createElement('div', { className: 'compression-info' },
+          compressionInfo.performed
+            ? `🗜️ Conversation ${compressionInfo.method}: ${compressionInfo.originalChars} → ${compressionInfo.compressedChars} chars (${compressionInfo.compressionRatio}% reduction)`
+            : `🗜️ Processing skipped: ${compressionInfo.reason}`
         ),
         isAnalyzing ? React.createElement('p', null, 'Analyzing conversation...') : React.createElement('div', { className: 'llm-response' }, renderHighlightedText(llmResponse || DEFAULT_ANALYSIS_MESSAGE))
       )

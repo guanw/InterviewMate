@@ -18,7 +18,8 @@ const {
   IPC_SWITCH_LLM_PROVIDER,
   IPC_GET_CURRENT_LLM_PROVIDER,
   IPC_MOVE_WINDOW,
-  IPC_RANDOMIZE_WINDOW_POSITION
+  IPC_RANDOMIZE_WINDOW_POSITION,
+  IPC_SET_TEST_INTERVIEW_DATA
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -53,6 +54,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Clear interview data
   clearInterviewData: () => ipcRenderer.invoke(IPC_CLEAR_INTERVIEW_DATA),
+
+  // Set test interview data (for testing purposes)
+  setTestInterviewData: (testData) => ipcRenderer.invoke(IPC_SET_TEST_INTERVIEW_DATA, testData),
 
   // Cache management
   getCacheStats: () => ipcRenderer.invoke(IPC_GET_CACHE_STATS),
