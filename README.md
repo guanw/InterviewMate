@@ -18,6 +18,7 @@ A comprehensive interview preparation tool that combines **real-time audio trans
 - **Centralized Logging**: Cross-platform logging system with configurable log levels
 - **Performance Metrics**: Track transcription and analysis performance (View → Performance Metrics)
 - **Keyboard Shortcuts**: S to start recording, X to stop
+- **Global Shortcuts**: Cmd/Ctrl + Arrow Keys to move window, Cmd/Ctrl + M to randomize position
 - **Responsive UI**: Controls and analysis side-by-side layout
 - **Hot Reloading**: Development mode with automatic restarts
 - **ESLint Integration**: Code quality enforcement across Electron + React stack
@@ -67,6 +68,14 @@ A comprehensive interview preparation tool that combines **real-time audio trans
 - Speak into your microphone - speech is transcribed in real-time.
 - Click "Stop Recording" or press 'X' to stop.
 - View transcription history in the scrollable bottom section.
+
+### Window Positioning
+
+InterviewMate runs as a floating window that can be positioned anywhere on your screen using global shortcuts:
+
+- **Move Window**: Use `Cmd/Ctrl + Arrow Keys` to move the window in any direction (50px steps)
+- **Random Position**: Press `Cmd/Ctrl + M` to randomly reposition the window on your screen
+- These shortcuts work even when InterviewMate is not the active window
 
 ### AI Analysis (Manual Control)
 
