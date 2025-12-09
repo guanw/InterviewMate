@@ -241,6 +241,15 @@ function App() {
     }
   };
 
+  // Update indicator window with current recording state
+  const updateIndicatorState = async () => {
+    try {
+      await window.electronAPI.updateIndicator({ isRecording });
+    } catch (error) {
+      logError('Error updating indicator:', error);
+    }
+  };
+
   // Search functionality - now handled by SearchBox component via context
   const { searchMatches, currentMatchIndex } = useSearch();
 
@@ -339,6 +348,8 @@ function App() {
 
       setIsRecording(true);
       setStatus('Recording...');
+      // Update indicator if visible
+      updateIndicatorState();
     } catch (error) {
       logError("Audio error:", error);
       setStatus(`Error: ${error.message}`);
@@ -371,6 +382,8 @@ function App() {
     // Clear any audio chunks
     audioManagerRef.current.clearAudioChunks();
     setStatus('Ready');
+    // Update indicator if visible
+    updateIndicatorState();
   };
 
   const processAudioChunk = async () => {
@@ -634,7 +647,6 @@ function App() {
           className: 'clear-btn'
         }, '🧹 Clear Conversation'),
         React.createElement('div', { className: 'buffer-display' }, `Buffer: ${conversationBufferRef.current.length} chars`),
-        React.createElement('small', null, 'Global shortcuts: Cmd/Ctrl+Shift+S (start recording), Cmd/Ctrl+Shift+X (stop recording)'),
 
         // Cache status and controls
         cacheStats && React.createElement('div', { className: 'cache-status' },

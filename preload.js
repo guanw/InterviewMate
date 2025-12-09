@@ -21,7 +21,9 @@ const {
   IPC_RANDOMIZE_WINDOW_POSITION,
   IPC_SET_TEST_INTERVIEW_DATA,
   IPC_TRIGGER_START_RECORDING,
-  IPC_TRIGGER_STOP_RECORDING
+  IPC_TRIGGER_STOP_RECORDING,
+  IPC_SHOW_INDICATOR,
+  IPC_HIDE_INDICATOR
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -85,5 +87,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   removeTriggerStopRecordingListener: (callback) => {
     ipcRenderer.removeListener(IPC_TRIGGER_STOP_RECORDING, callback);
-  }
+  },
+
+  // Indicator window controls
+  showIndicator: () => ipcRenderer.invoke(IPC_SHOW_INDICATOR),
+  hideIndicator: () => ipcRenderer.invoke(IPC_HIDE_INDICATOR),
+  updateIndicator: (data) => ipcRenderer.invoke(IPC_UPDATE_INDICATOR, data)
 });

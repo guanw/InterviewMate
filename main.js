@@ -42,7 +42,10 @@ const {
   IPC_RANDOMIZE_WINDOW_POSITION,
   IPC_SET_TEST_INTERVIEW_DATA,
   IPC_TRIGGER_START_RECORDING,
-  IPC_TRIGGER_STOP_RECORDING
+  IPC_TRIGGER_STOP_RECORDING,
+  IPC_UPDATE_INDICATOR,
+  IPC_SHOW_INDICATOR,
+  IPC_HIDE_INDICATOR
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -60,9 +63,55 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
+// Create the floating indicator window
+function createIndicatorWindow() {
+  if (indicatorWindow && !indicatorWindow.isDestroyed()) {
+    return; // Already exists
+  }
+
+  const { screen } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width } = primaryDisplay.workAreaSize;
+
+  indicatorWindow = new BrowserWindow({
+    width: 220,
+    height: 80,
+    x: width - 230, // Top-right corner with some margin
+    y: 40,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    movable: false,
+    focusable: false,
+    show: false, // Start hidden
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  indicatorWindow.loadFile('indicator.html');
+
+  // Hide from taskbar and alt-tab
+  indicatorWindow.setSkipTaskbar(true);
+  indicatorWindow.setAlwaysOnTop(true, 'floating');
+
+  indicatorWindow.on('ready-to-show', () => {
+    // Show by default
+    indicatorWindow.show();
+  });
+
+  indicatorWindow.on('closed', () => {
+    indicatorWindow = null;
+  });
+}
+
 // LLM processing is now handled in LLM.js
 
 let mainWindow;
+let indicatorWindow;
 let localServer;
 let vadManager;
 
@@ -103,6 +152,9 @@ app.whenReady().then(() => {
   } catch (error) {
     logError('Error initializing VAD Manager:', error);
   }
+
+  // Create indicator window
+  createIndicatorWindow();
 
   // Create application menu
   const template = [
@@ -363,6 +415,49 @@ ipcMain.handle(IPC_SET_TEST_INTERVIEW_DATA, async (_, testData) => {
     }
   } catch (error) {
     logError('Error setting test interview data:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(IPC_SHOW_INDICATOR, async () => {
+  try {
+    if (indicatorWindow && !indicatorWindow.isDestroyed()) {
+      indicatorWindow.show();
+      return { success: true };
+    } else {
+      createIndicatorWindow();
+      if (indicatorWindow) {
+        indicatorWindow.show();
+        return { success: true };
+      }
+    }
+    return { success: false, error: 'Could not create indicator window' };
+  } catch (error) {
+    logError('Error showing indicator:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(IPC_HIDE_INDICATOR, async () => {
+  try {
+    if (indicatorWindow && !indicatorWindow.isDestroyed()) {
+      indicatorWindow.hide();
+    }
+    return { success: true };
+  } catch (error) {
+    logError('Error hiding indicator:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(IPC_UPDATE_INDICATOR, async (_, data) => {
+  try {
+    if (indicatorWindow && !indicatorWindow.isDestroyed()) {
+      indicatorWindow.webContents.send(IPC_UPDATE_INDICATOR, data);
+    }
+    return { success: true };
+  } catch (error) {
+    logError('Error updating indicator:', error);
     return { success: false, error: error.message };
   }
 });
