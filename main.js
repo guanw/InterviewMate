@@ -75,7 +75,7 @@ function createIndicatorWindow() {
 
   indicatorWindow = new BrowserWindow({
     width: 220,
-    height: 80,
+    height: 120,
     x: width - 230, // Top-right corner with some margin
     y: 40,
     frame: false,
