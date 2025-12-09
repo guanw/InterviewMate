@@ -519,8 +519,6 @@ function App() {
       if (e.target.tagName === 'INPUT' && e.target.classList.contains('search-input')) return;
 
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if ((e.key === 's' || e.key === 'S') && !isRecording) startRecording();
-      if ((e.key === 'x' || e.key === 'X') && isRecording) stopRecording();
 
       // Cmd/Ctrl + F to toggle search
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
@@ -532,7 +530,7 @@ function App() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isRecording]);
+  }, []);
 
   // Listen for menu events from main process
   useEffect(() => {
@@ -543,6 +541,41 @@ function App() {
       window.electronAPI?.removeShowMetricsListener?.(handleShowMetrics);
     };
   }, []);
+
+  // Listen for global shortcut events from main process
+  useEffect(() => {
+    const handleTriggerStartRecording = () => {
+      info('Received global shortcut: Start Recording');
+      if (!isRecording) {
+        startRecording();
+      }
+    };
+
+    const handleTriggerStopRecording = () => {
+      info('Received global shortcut: Stop Recording');
+      if (isRecording) {
+        stopRecording();
+      }
+    };
+
+    // Set up listeners (these would need to be added to preload.js first)
+    // For now, we'll handle them directly if the API exists
+    if (window.electronAPI?.onTriggerStartRecording) {
+      window.electronAPI.onTriggerStartRecording(handleTriggerStartRecording);
+    }
+    if (window.electronAPI?.onTriggerStopRecording) {
+      window.electronAPI.onTriggerStopRecording(handleTriggerStopRecording);
+    }
+
+    return () => {
+      if (window.electronAPI?.removeTriggerStartRecordingListener) {
+        window.electronAPI.removeTriggerStartRecordingListener(handleTriggerStartRecording);
+      }
+      if (window.electronAPI?.removeTriggerStopRecordingListener) {
+        window.electronAPI.removeTriggerStopRecordingListener(handleTriggerStopRecording);
+      }
+    };
+  }, [isRecording]);
 
   // Listen for interview question data from extension
   useEffect(() => {
@@ -601,7 +634,7 @@ function App() {
           className: 'clear-btn'
         }, '🧹 Clear Conversation'),
         React.createElement('div', { className: 'buffer-display' }, `Buffer: ${conversationBufferRef.current.length} chars`),
-        React.createElement('small', null, 'Keyboard shortcuts: Press \'S\' to start, \'X\' to stop'),
+        React.createElement('small', null, 'Global shortcuts: Cmd/Ctrl+Shift+S (start recording), Cmd/Ctrl+Shift+X (stop recording)'),
 
         // Cache status and controls
         cacheStats && React.createElement('div', { className: 'cache-status' },

@@ -17,8 +17,7 @@ A comprehensive interview preparation tool that combines **real-time audio trans
 - **Token Usage Optimization**: Quality filtering prevents expensive LLM calls on poor audio
 - **Centralized Logging**: Cross-platform logging system with configurable log levels
 - **Performance Metrics**: Track transcription and analysis performance (View → Performance Metrics)
-- **Keyboard Shortcuts**: S to start recording, X to stop
-- **Global Shortcuts**: Cmd/Ctrl + Arrow Keys to move window, Cmd/Ctrl + M to randomize position
+- **Global Shortcuts**: Cmd/Ctrl + Arrow Keys to move window, Cmd/Ctrl + M to randomize position, Cmd/Ctrl + Shift + S to start recording, Cmd/Ctrl + Shift + X to stop recording
 - **Responsive UI**: Controls and analysis side-by-side layout
 - **Hot Reloading**: Development mode with automatic restarts
 - **ESLint Integration**: Code quality enforcement across Electron + React stack
@@ -64,9 +63,9 @@ A comprehensive interview preparation tool that combines **real-time audio trans
 
 ### Basic Recording
 
-- Click "Start Recording" or press 'S' to begin recording.
+- Click "Start Recording" or use global shortcut Cmd/Ctrl+Shift+S to begin recording.
 - Speak into your microphone - speech is transcribed in real-time.
-- Click "Stop Recording" or press 'X' to stop.
+- Click "Stop Recording" or use global shortcut Cmd/Ctrl+Shift+X to stop.
 - View transcription history in the scrollable bottom section.
 
 ### Window Positioning

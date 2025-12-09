@@ -20,6 +20,8 @@ const IPC_GET_CURRENT_LLM_PROVIDER = 'get-current-llm-provider';
 const IPC_MOVE_WINDOW = 'move-window';
 const IPC_RANDOMIZE_WINDOW_POSITION = 'randomize-window-position';
 const IPC_SET_TEST_INTERVIEW_DATA = 'set-test-interview-data';
+const IPC_TRIGGER_START_RECORDING = 'trigger-start-recording';
+const IPC_TRIGGER_STOP_RECORDING = 'trigger-stop-recording';
 
 module.exports = {
   IPC_TRANSCRIBE_AUDIO,
@@ -40,5 +42,7 @@ module.exports = {
   IPC_GET_CURRENT_LLM_PROVIDER,
   IPC_MOVE_WINDOW,
   IPC_RANDOMIZE_WINDOW_POSITION,
-  IPC_SET_TEST_INTERVIEW_DATA
+  IPC_SET_TEST_INTERVIEW_DATA,
+  IPC_TRIGGER_START_RECORDING,
+  IPC_TRIGGER_STOP_RECORDING
 };

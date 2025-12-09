@@ -40,7 +40,9 @@ const {
   IPC_GET_CURRENT_LLM_PROVIDER,
   IPC_MOVE_WINDOW,
   IPC_RANDOMIZE_WINDOW_POSITION,
-  IPC_SET_TEST_INTERVIEW_DATA
+  IPC_SET_TEST_INTERVIEW_DATA,
+  IPC_TRIGGER_START_RECORDING,
+  IPC_TRIGGER_STOP_RECORDING
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -220,7 +222,21 @@ app.whenReady().then(() => {
       info(`Window randomized via shortcut to position: (${randomX}, ${randomY})`);
     });
 
+    // Register recording shortcuts
+    globalShortcut.register('CmdOrCtrl+Shift+S', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      info('Global shortcut: Start Recording triggered');
+      mainWindow.webContents.send(IPC_TRIGGER_START_RECORDING);
+    });
+
+    globalShortcut.register('CmdOrCtrl+Shift+X', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      info('Global shortcut: Stop Recording triggered');
+      mainWindow.webContents.send(IPC_TRIGGER_STOP_RECORDING);
+    });
+
     info('Window movement shortcuts registered: Cmd/Ctrl + Arrow Keys, Cmd/Ctrl + M (randomize)');
+    info('Recording shortcuts registered: Cmd/Ctrl + Shift + S (start), Cmd/Ctrl + Shift + X (stop)');
   };
 
   // Register the shortcuts

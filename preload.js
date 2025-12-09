@@ -19,7 +19,9 @@ const {
   IPC_GET_CURRENT_LLM_PROVIDER,
   IPC_MOVE_WINDOW,
   IPC_RANDOMIZE_WINDOW_POSITION,
-  IPC_SET_TEST_INTERVIEW_DATA
+  IPC_SET_TEST_INTERVIEW_DATA,
+  IPC_TRIGGER_START_RECORDING,
+  IPC_TRIGGER_STOP_RECORDING
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -69,5 +71,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Window movement
   moveWindow: (direction) => ipcRenderer.invoke(IPC_MOVE_WINDOW, direction),
-  randomizeWindowPosition: () => ipcRenderer.invoke(IPC_RANDOMIZE_WINDOW_POSITION)
+  randomizeWindowPosition: () => ipcRenderer.invoke(IPC_RANDOMIZE_WINDOW_POSITION),
+
+  // Global shortcut triggers
+  onTriggerStartRecording: (callback) => {
+    ipcRenderer.on(IPC_TRIGGER_START_RECORDING, callback);
+  },
+  removeTriggerStartRecordingListener: (callback) => {
+    ipcRenderer.removeListener(IPC_TRIGGER_START_RECORDING, callback);
+  },
+  onTriggerStopRecording: (callback) => {
+    ipcRenderer.on(IPC_TRIGGER_STOP_RECORDING, callback);
+  },
+  removeTriggerStopRecordingListener: (callback) => {
+    ipcRenderer.removeListener(IPC_TRIGGER_STOP_RECORDING, callback);
+  }
 });
