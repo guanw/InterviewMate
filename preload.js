@@ -28,7 +28,7 @@ const {
 
 contextBridge.exposeInMainWorld('electronAPI', {
   transcribeAudio: (audioBuffer) => ipcRenderer.invoke(IPC_TRANSCRIBE_AUDIO, audioBuffer),
-  analyzeConversation: (conversationBuffer) => ipcRenderer.invoke(IPC_ANALYZE_CONVERSATION, conversationBuffer),
+  analyzeConversation: (conversationBuffer, isFollowUp = false) => ipcRenderer.invoke(IPC_ANALYZE_CONVERSATION, conversationBuffer, isFollowUp),
 
   // VAD processing
   processVAD: (audioBuffer) => ipcRenderer.invoke(IPC_PROCESS_VAD, audioBuffer),

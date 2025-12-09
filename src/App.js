@@ -83,6 +83,7 @@ function App() {
   const [llmProviders, setLLMProviders] = useState(null); // Available LLM providers
   const [currentLLMProvider, setCurrentLLMProvider] = useState(null); // Current LLM provider
   const [compressionInfo, setCompressionInfo] = useState(null); // Compression information
+  const [isFollowUpMode, setIsFollowUpMode] = useState(false); // Whether we're in follow-up question mode
 
   // Refs for synchronous access in callbacks and audio management
   const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
@@ -91,11 +92,11 @@ function App() {
   const metricsManagerRef = useRef(new MetricsManager()); // Performance metrics tracking
 
 
-  const performLLMAnalysis = async (buffer) => {
+  const performLLMAnalysis = async (buffer, isFollowUp = false) => {
     setIsAnalyzing(true);
     try {
       const llmStart = performance.now();
-      const result = await window.electronAPI.analyzeConversation(buffer);
+      const result = await window.electronAPI.analyzeConversation(buffer, isFollowUp);
       const llmEnd = performance.now();
 
       // Track cache hit status
@@ -130,19 +131,31 @@ function App() {
     info('🎯 Manual analysis button clicked');
     info('Current buffer length:', currentBuffer ? currentBuffer.length : 0);
     info('Current question available:', !!currentQuestion);
+    info('Follow-up mode:', isFollowUpMode);
 
-    if (currentQuestion) {
-      // If we have a question, analyze based on question + conversation (if any)
+    if (isFollowUpMode) {
+      // Follow-up analysis mode
+      if (currentBuffer && currentBuffer.trim()) {
+        info('🔄 Starting follow-up analysis with recent conversation');
+        // For follow-ups, we'll pass a special flag to indicate follow-up mode
+        await performLLMAnalysis(currentBuffer, true); // true = followUpMode
+        setIsFollowUpMode(false); // Reset follow-up mode after analysis
+      } else {
+        info('⚠️ No recent conversation for follow-up analysis');
+        setLlmResponse('Please speak your follow-up question first, then click Analyze Conversation.');
+      }
+    } else if (currentQuestion) {
+      // Initial question analysis
       const analysisText = currentBuffer && currentBuffer.trim()
         ? `${currentQuestion.title}\n${currentQuestion.description}\n\nConversation: ${currentBuffer}`
         : `${currentQuestion.title}\n${currentQuestion.description}`;
 
-      info('✅ Starting analysis with question:', currentQuestion.title);
-      await performLLMAnalysis(analysisText);
+      info('✅ Starting initial analysis with question:', currentQuestion.title);
+      await performLLMAnalysis(analysisText, false);
     } else if (currentBuffer && currentBuffer.trim()) {
       // Fallback to conversation-only analysis
       info('✅ Starting analysis with conversation buffer');
-      await performLLMAnalysis(currentBuffer);
+      await performLLMAnalysis(currentBuffer, false);
     } else {
       info('⚠️ No content to analyze');
       setLlmResponse('No question or conversation to analyze. Extract a question from the Chrome extension or start speaking.');
@@ -639,6 +652,18 @@ function App() {
           className: 'analyze-btn'
         }, isAnalyzing ? '🔄 Analyzing...' : '🧠 Analyze Conversation'),
 
+        // New Question Button (for follow-ups)
+        React.createElement('button', {
+          onClick: () => {
+            setIsFollowUpMode(true);
+            setLlmResponse('Ready for follow-up question. Start recording or continue speaking...');
+            setAnalysisType('followup-ready');
+            info('🔄 Follow-up mode activated - ready for new question');
+          },
+          disabled: isAnalyzing || !currentQuestion, // Only available if we have an initial question
+          className: 'followup-btn'
+        }, '🆕 New Question'),
+
         React.createElement('div', { className: 'status' }, status),
 
         React.createElement('button', {
@@ -738,6 +763,8 @@ function App() {
         analysisType && React.createElement('div', { className: 'analysis-type' },
           analysisType === 'interview-metadata-priority' ?
             '🎯 Analysis based on extracted interview question + conversation context' :
+          analysisType === 'interview-followup' ?
+            '🔄 Follow-up analysis based on recent conversation' :
             '💬 Analysis based on conversation only'
         ),
         // Compression info indicator

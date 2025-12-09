@@ -79,13 +79,13 @@ Summary:`;
  * Analyze conversation using LLM with caching
  * @param {string} conversationBuffer - The conversation text to analyze
  * @param {Object} interviewData - Optional interview question data
- * @param {boolean} forceNewAnalysis - Whether to bypass cache
+ * @param {boolean} isFollowUp - Whether this is a follow-up question analysis
  * @returns {Object} Analysis result
  */
-async function analyzeConversation(conversationBuffer, interviewData = null, forceNewAnalysis = false) {
+async function analyzeConversation(conversationBuffer, interviewData = null, isFollowUp = false) {
     info('Received conversationBuffer:', conversationBuffer);
     info('Type:', typeof conversationBuffer);
-    info('Force new analysis:', forceNewAnalysis);
+    info('Is follow-up:', isFollowUp);
     info('Interview data received:', interviewData ? 'present' : 'null');
 
     try {
@@ -140,9 +140,6 @@ async function analyzeConversation(conversationBuffer, interviewData = null, for
         let cacheKey = '';
 
         if (hasInterviewData) {
-            // Priority 1: Analyze extracted interview question
-            info('🎯 Prioritizing extracted interview metadata for analysis');
-
             const problemTitle = interviewData.problem?.title || 'Unknown problem';
             const problemDescription = interviewData.problem?.description || 'No description available';
 
@@ -155,7 +152,37 @@ async function analyzeConversation(conversationBuffer, interviewData = null, for
                 }
             }
 
-            prompt = `You are a senior technical interviewer helping with a coding problem.
+            if (isFollowUp) {
+                // Follow-up analysis: Focus on the recent conversation
+                info('🔄 Performing follow-up analysis on recent conversation');
+
+                prompt = `You are a senior technical interviewer responding to a follow-up question during an interview.
+
+**ORIGINAL QUESTION CONTEXT:**
+Title: ${problemTitle}
+Description: ${problemDescription}
+${codeInfo !== 'No code provided' ? `\nStarting Code:\n${codeInfo}` : ''}
+
+**RECENT CONVERSATION TO ANALYZE:**
+${processedConversationBuffer}
+
+**FOLLOW-UP ANALYSIS REQUIREMENTS:**
+1. Analyze the most recent question or clarification asked in the conversation
+2. Provide a clear, detailed answer with specific technical explanations
+3. If code examples are needed, provide complete, working PYTHON solutions
+4. Address any misconceptions or provide additional insights
+5. Keep your response focused and directly relevant to the follow-up question
+
+IMPORTANT: This is a follow-up to an ongoing interview discussion. Focus on the specific question asked rather than re-explaining the entire original problem.`;
+
+                // Use conversation content for cache key in follow-ups
+                cacheKey = `followup-${processedConversationBuffer}`;
+
+            } else {
+                // Initial question analysis
+                info('🎯 Performing initial analysis of interview question');
+
+                prompt = `You are a senior technical interviewer helping with a coding problem.
 
 **PRIMARY QUESTION TO ANALYZE:**
 Title: ${problemTitle}
@@ -179,8 +206,9 @@ ${processedConversationBuffer && processedConversationBuffer.trim() ? `**FOLLOW-
 
 IMPORTANT: Always provide code solutions in PYTHON, regardless of any starting code language detected.`;
 
-            // Create cache key from the question content
-            cacheKey = `${problemTitle}\n${problemDescription}\n${codeInfo}`;
+                // Create cache key from the question content
+                cacheKey = `${problemTitle}\n${problemDescription}\n${codeInfo}`;
+            }
 
         } else {
             // Fallback: Original conversationBuffer-only analysis
@@ -189,23 +217,24 @@ IMPORTANT: Always provide code solutions in PYTHON, regardless of any starting c
             cacheKey = processedConversationBuffer || '';
         }
 
-        // Check cache first (unless force new analysis is requested)
-        if (!forceNewAnalysis) {
+        // Check cache first (unless this is a follow-up analysis)
+        if (!isFollowUp) {
             const cachedResult = responseCache.findSimilar(cacheKey);
             if (cachedResult) {
                 info('✅ Cache hit! Returning cached analysis');
                 return {
                     success: true,
                     response: cachedResult.response,
-                    analysisType: hasInterviewData ? 'interview-metadata-priority' : 'conversation-buffer-only',
+                    analysisType: hasInterviewData ? (isFollowUp ? 'interview-followup' : 'interview-metadata-priority') : 'conversation-buffer-only',
                     cached: true,
                     cacheHit: true,
-                    compressionInfo
+                    compressionInfo,
+                    isFollowUp
                 };
             }
         }
 
-        info('Cache miss or forced analysis, sending prompt to LLM...');
+        info('Cache miss or follow-up analysis, sending prompt to LLM...');
         const response = await llmManager.analyze(prompt);
         info('LLM analysis completed successfully');
 
@@ -219,10 +248,11 @@ IMPORTANT: Always provide code solutions in PYTHON, regardless of any starting c
         return {
             success: true,
             response,
-            analysisType: hasInterviewData ? 'interview-metadata-priority' : 'conversation-buffer-only',
+            analysisType: hasInterviewData ? (isFollowUp ? 'interview-followup' : 'interview-metadata-priority') : 'conversation-buffer-only',
             cached: false,
             cacheHit: false,
-            compressionInfo
+            compressionInfo,
+            isFollowUp
         };
 
     } catch (error) {

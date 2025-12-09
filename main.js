@@ -366,12 +366,12 @@ app.on('will-quit', () => {
   }
 });
 
-ipcMain.handle(IPC_ANALYZE_CONVERSATION, async (_, conversationBuffer, forceNewAnalysis = false) => {
+ipcMain.handle(IPC_ANALYZE_CONVERSATION, async (_, conversationBuffer, isFollowUp = false) => {
     // Get current interview data from LocalServer
     const interviewData = localServer ? localServer.getCurrentInterviewData() : null;
 
     // Delegate to LLM processing module
-    return await analyzeConversation(conversationBuffer, interviewData, forceNewAnalysis);
+    return await analyzeConversation(conversationBuffer, interviewData, isFollowUp);
 });
 
 // IPC handlers for local server communication
