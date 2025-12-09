@@ -22,8 +22,7 @@ const {
   IPC_SET_TEST_INTERVIEW_DATA,
   IPC_TRIGGER_START_RECORDING,
   IPC_TRIGGER_STOP_RECORDING,
-  IPC_SHOW_INDICATOR,
-  IPC_HIDE_INDICATOR
+  IPC_UPDATE_INDICATOR,
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -90,7 +89,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Indicator window controls
-  showIndicator: () => ipcRenderer.invoke(IPC_SHOW_INDICATOR),
-  hideIndicator: () => ipcRenderer.invoke(IPC_HIDE_INDICATOR),
-  updateIndicator: (data) => ipcRenderer.invoke(IPC_UPDATE_INDICATOR, data)
+  updateIndicator: (data) => ipcRenderer.send(IPC_UPDATE_INDICATOR, data),
+  onIndicatorUpdate: (callback) => {
+    ipcRenderer.on(IPC_UPDATE_INDICATOR, (event, data) => callback(event, data));
+  },
+  removeIndicatorUpdateListener: (callback) => {
+    ipcRenderer.removeListener(IPC_UPDATE_INDICATOR, callback);
+  }
 });

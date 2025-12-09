@@ -242,7 +242,7 @@ function App() {
   };
 
   // Update indicator window with current recording state
-  const updateIndicatorState = async () => {
+  const updateIndicatorState = async (isRecording) => {
     try {
       await window.electronAPI.updateIndicator({ isRecording });
     } catch (error) {
@@ -349,7 +349,7 @@ function App() {
       setIsRecording(true);
       setStatus('Recording...');
       // Update indicator if visible
-      updateIndicatorState();
+      updateIndicatorState(true);
     } catch (error) {
       logError("Audio error:", error);
       setStatus(`Error: ${error.message}`);
@@ -377,13 +377,13 @@ function App() {
     const analyser = audioManagerRef.current.getAnalyser();
     if (analyser) analyser.disconnect();
     const audioContext = audioManagerRef.current.getAudioContext();
-    if (audioContext) audioContext.close();
+    if (audioContext && audioContext.state !== 'closed') audioContext.close();
 
     // Clear any audio chunks
     audioManagerRef.current.clearAudioChunks();
     setStatus('Ready');
     // Update indicator if visible
-    updateIndicatorState();
+    updateIndicatorState(false);
   };
 
   const processAudioChunk = async () => {

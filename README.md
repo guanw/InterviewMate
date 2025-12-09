@@ -270,3 +270,29 @@ LOG_LEVEL=error npm start  # Show only errors
 - Set `LOG_LEVEL=debug` to see detailed logs
 - Check console for `[INFO]`, `[ERROR]`, `[WARN]` messages
 - Use "Performance Metrics" from View menu to track performance
+
+### Development Features
+
+#### Auto-Open DevTools for Indicator Window
+
+In development mode (`NODE_ENV=development`), the indicator window will automatically open DevTools after 1 second. This makes debugging the indicator window much easier.
+
+**How it works:**
+
+1. Set `NODE_ENV=development` in your `.env` file
+2. Run the app with `npm start` or `npm run dev`
+3. The indicator window will auto-open DevTools after loading
+
+**Manual DevTools Shortcut:**
+
+- Press `Cmd+Shift+U` (Mac) or `Ctrl+Shift+U` (Windows/Linux) to manually open DevTools on the indicator window
+
+#### Indicator Window Features
+
+The floating indicator window shows:
+
+- **Recording Status**: "Ready" (gray) or "Recording..." (red)
+- **Active Shortcuts**: Highlights which shortcuts are currently available
+- **Global Shortcuts**: Shows all available shortcuts for reference
+
+The indicator window is always visible and updates in real-time as you start/stop recording.

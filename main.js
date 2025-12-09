@@ -43,9 +43,7 @@ const {
   IPC_SET_TEST_INTERVIEW_DATA,
   IPC_TRIGGER_START_RECORDING,
   IPC_TRIGGER_STOP_RECORDING,
-  IPC_UPDATE_INDICATOR,
-  IPC_SHOW_INDICATOR,
-  IPC_HIDE_INDICATOR
+  IPC_UPDATE_INDICATOR
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -84,11 +82,13 @@ function createIndicatorWindow() {
     skipTaskbar: true,
     resizable: false,
     movable: false,
-    focusable: false,
+    focusable: true, // Make focusable for debugging
     show: false, // Start hidden
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      devTools: true, // Enable DevTools
+      preload: path.join(__dirname, 'indicator-preload.js')
     }
   });
 
@@ -101,6 +101,22 @@ function createIndicatorWindow() {
   indicatorWindow.on('ready-to-show', () => {
     // Show by default
     indicatorWindow.show();
+
+    // Auto-open DevTools in development mode
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(() => {
+        indicatorWindow.webContents.openDevTools();
+      }, 1000); // Give it time to load
+    }
+
+    // Add keyboard shortcut to open DevTools on indicator window
+    // Use Cmd+Option+U (Mac) or Ctrl+Shift+U (Windows/Linux)
+    indicatorWindow.webContents.on('before-input-event', (event, input) => {
+      if (input.key === 'u' && (input.control || input.meta) && input.alt) {
+        indicatorWindow.webContents.openDevTools();
+        event.preventDefault();
+      }
+    });
   });
 
   indicatorWindow.on('closed', () => {
@@ -305,6 +321,17 @@ app.whenReady().then(() => {
 
     info('Window movement shortcuts registered: Cmd/Ctrl + Arrow Keys, Cmd/Ctrl + M (randomize)');
     info('Recording shortcuts registered: Cmd/Ctrl + Shift + S (start), Cmd/Ctrl + Shift + X (stop)');
+
+    // Register global shortcut to open DevTools on indicator window
+    globalShortcut.register('CmdOrCtrl+Shift+U', () => {
+      if (indicatorWindow && !indicatorWindow.isDestroyed()) {
+        info('Opening DevTools on indicator window');
+        indicatorWindow.webContents.openDevTools();
+      } else {
+        info('Indicator window not available for DevTools');
+      }
+    });
+    info('DevTools shortcut registered: Cmd/Ctrl + Shift + U (for indicator window)');
   };
 
   // Register the shortcuts
@@ -435,46 +462,20 @@ ipcMain.handle(IPC_SET_TEST_INTERVIEW_DATA, async (_, testData) => {
   }
 });
 
-ipcMain.handle(IPC_SHOW_INDICATOR, async () => {
-  try {
-    if (indicatorWindow && !indicatorWindow.isDestroyed()) {
-      indicatorWindow.show();
-      return { success: true };
-    } else {
-      createIndicatorWindow();
-      if (indicatorWindow) {
-        indicatorWindow.show();
-        return { success: true };
-      }
-    }
-    return { success: false, error: 'Could not create indicator window' };
-  } catch (error) {
-    logError('Error showing indicator:', error);
-    return { success: false, error: error.message };
-  }
-});
 
-ipcMain.handle(IPC_HIDE_INDICATOR, async () => {
+// Handle indicator updates - use ipcMain.on for event-based communication
+ipcMain.on(IPC_UPDATE_INDICATOR, (event, data) => {
   try {
+    console.log('🔴 [MAIN] Received indicator update:', data); // Debug log
     if (indicatorWindow && !indicatorWindow.isDestroyed()) {
-      indicatorWindow.hide();
-    }
-    return { success: true };
-  } catch (error) {
-    logError('Error hiding indicator:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle(IPC_UPDATE_INDICATOR, async (_, data) => {
-  try {
-    if (indicatorWindow && !indicatorWindow.isDestroyed()) {
+      console.log('📤 [MAIN] Forwarding to indicator window'); // Debug log
+      // Send the IPC message to the indicator window
       indicatorWindow.webContents.send(IPC_UPDATE_INDICATOR, data);
+    } else {
+      console.log('❌ [MAIN] Indicator window not available'); // Debug log
     }
-    return { success: true };
   } catch (error) {
-    logError('Error updating indicator:', error);
-    return { success: false, error: error.message };
+    console.error('❌ [MAIN] Error updating indicator:', error); // Debug log
   }
 });
 
