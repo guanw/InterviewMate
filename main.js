@@ -266,12 +266,28 @@ app.whenReady().then(() => {
       const availableWidth = screenBounds.width - width;
       const availableHeight = screenBounds.height - height;
 
-      // Generate random position within bounds
+      // Generate random position within bounds for main window
       const randomX = screenBounds.x + Math.floor(Math.random() * availableWidth);
       const randomY = screenBounds.y + Math.floor(Math.random() * availableHeight);
 
       mainWindow.setPosition(randomX, randomY);
-      info(`Window randomized via shortcut to position: (${randomX}, ${randomY})`);
+      info(`Main window randomized via shortcut to position: (${randomX}, ${randomY})`);
+
+      // Also randomize indicator window position to one of three top positions
+      if (indicatorWindow && !indicatorWindow.isDestroyed()) {
+        const indicatorWidth = 220; // Width of indicator window
+
+        // Choose one of three positions: left, center, right at the top
+        const positions = [
+          { x: screenBounds.x + 10, y: screenBounds.y + 40, name: 'left-top' }, // Left top
+          { x: screenBounds.x + Math.floor((screenBounds.width - indicatorWidth) / 2), y: screenBounds.y + 40, name: 'center-top' }, // Center top
+          { x: screenBounds.x + screenBounds.width - indicatorWidth - 10, y: screenBounds.y + 40, name: 'right-top' } // Right top
+        ];
+
+        const randomPosition = positions[Math.floor(Math.random() * positions.length)];
+        indicatorWindow.setPosition(randomPosition.x, randomPosition.y);
+        info(`Indicator window moved to ${randomPosition.name} position: (${randomPosition.x}, ${randomPosition.y})`);
+      }
     });
 
     // Register recording shortcuts

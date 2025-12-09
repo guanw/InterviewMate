@@ -17,7 +17,7 @@ A comprehensive interview preparation tool that combines **real-time audio trans
 - **Token Usage Optimization**: Quality filtering prevents expensive LLM calls on poor audio
 - **Centralized Logging**: Cross-platform logging system with configurable log levels
 - **Performance Metrics**: Track transcription and analysis performance (View → Performance Metrics)
-- **Global Shortcuts**: Cmd/Ctrl + Arrow Keys to move window, Cmd/Ctrl + M to randomize position, Cmd/Ctrl + Shift + S to start recording, Cmd/Ctrl + Shift + X to stop recording
+- **Global Shortcuts**: Cmd/Ctrl + Arrow Keys to move window, Cmd/Ctrl + M to randomize both main window and indicator positions, Cmd/Ctrl + Shift + S to start recording, Cmd/Ctrl + Shift + X to stop recording
 - **Floating Indicator**: Always-visible overlay window showing recording status and shortcut reminders
 - **Responsive UI**: Controls and analysis side-by-side layout
 - **Hot Reloading**: Development mode with automatic restarts
