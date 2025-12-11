@@ -6,7 +6,6 @@ import { MetricsManager } from './MetricsManager.js';
 import { MetricsDisplay } from './MetricsDisplay.js';
 import { SearchBox } from './SearchBox.js';
 import { SearchProvider, useSearch } from './SearchContext.js';
-// VAD import will be handled in main process due to Electron renderer limitations
 
 import { log, error } from './Logging.js';
 
@@ -70,7 +69,6 @@ function writeString(view, offset, string) {
 function App() {
   // UI state variables (trigger re-renders)
   const [isRecording, setIsRecording] = useState(false);
-  const [status, setStatus] = useState('Ready');
   const [transcripts, setTranscripts] = useState([]);
   const [llmResponse, setLlmResponse] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -291,8 +289,6 @@ function App() {
   const startRecording = async () => {
     info("start: startRecording");
     try {
-      setStatus('Initializing microphone...');
-
       // Reset VAD for new recording session
       try {
         await window.electronAPI.resetVAD();
@@ -352,12 +348,10 @@ function App() {
       workletNode.port.postMessage({ type: 'start' });
 
       setIsRecording(true);
-      setStatus('Recording...');
       // Update indicator if visible
       updateIndicatorState(true);
     } catch (error) {
       logError("Audio error:", error);
-      setStatus(`Error: ${error.message}`);
     }
     info("end: startRecording");
   };
@@ -367,7 +361,6 @@ function App() {
     info("Stopping recording...");
     audioManagerRef.current.setIsRecording(false);
     setIsRecording(false);
-    setStatus('Stopping...');
 
     // Stop AudioWorklet
     const workletNode = audioManagerRef.current.getWorkletNode();
@@ -387,7 +380,7 @@ function App() {
     // Clear any audio chunks to prevent them from being processed
     audioManagerRef.current.clearAudioChunks();
     info("🧹 Cleared audio chunks on stop recording");
-    // setStatus('Ready');
+
     // Update indicator if visible
     updateIndicatorState(false);
   };
@@ -436,7 +429,6 @@ function App() {
     metricsManagerRef.current.trackAudioProcessing(audioProcessingStart, audioProcessingEnd, wavBuffer.length);
 
     try {
-      setStatus('Sending to Whisper...');
       const transcriptionStart = performance.now();
       const { success, result, error } = await window.electronAPI.transcribeAudio(wavBuffer);
       const transcriptionEnd = performance.now();
@@ -535,7 +527,6 @@ function App() {
       }
     } catch (error) {
       logError("Transcription error: processAudioChunk --", error);
-      setStatus(`Transcription Error: ${error.message}`);
     }
   };
 
@@ -643,17 +634,12 @@ function App() {
   return React.createElement('div', null,
     React.createElement('div', { className: 'top-row' },
       React.createElement('div', { className: 'control-panel' },
-        React.createElement('button', { onClick: startRecording, disabled: isRecording, className: isRecording ? 'start-btn disabled' : 'start-btn' }, 'Start Recording'),
-        React.createElement('button', { onClick: stopRecording, disabled: !isRecording, className: 'stop-btn' }, 'Stop Recording'),
-
         // Manual Analysis Button (always available)
         React.createElement('button', {
           onClick: handleManualAnalysis,
           disabled: isAnalyzing || (!currentQuestion && !conversationBufferRef.current?.trim()),
           className: 'analyze-btn'
         }, isAnalyzing ? '🔄 Analyzing...' : '🧠 Analyze Conversation'),
-
-        React.createElement('div', { className: 'status' }, status),
 
         React.createElement('button', {
           onClick: clearConversationBuffer,
