@@ -4,7 +4,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "NODE_ENV=development electron .",
+    "dev": "NODE_ENV=development electron . -- --inspect=9229",
     "lint": "eslint src/ main.js preload.js renderer.js",
     "lint:fix": "eslint src/ main.js preload.js renderer.js --fix"
   },
