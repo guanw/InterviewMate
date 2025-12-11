@@ -326,6 +326,11 @@ function App() {
       workletNode.port.onmessage = (event) => {
         const { type, data } = event.data;
         if (type === 'audioData') {
+          // Check if we're still recording before processing
+          if (!audioManagerRef.current.getIsRecording()) {
+            info("🚫 Received audio data after recording stopped, ignoring");
+            return;
+          }
           // Process audio chunks from worklet
           const combined = mergeFloat32Arrays(data.map(arr => new Float32Array(arr)));
           audioManagerRef.current.setAudioChunks([combined]);
@@ -379,9 +384,10 @@ function App() {
     const audioContext = audioManagerRef.current.getAudioContext();
     if (audioContext && audioContext.state !== 'closed') audioContext.close();
 
-    // Clear any audio chunks
+    // Clear any audio chunks to prevent them from being processed
     audioManagerRef.current.clearAudioChunks();
-    setStatus('Ready');
+    info("🧹 Cleared audio chunks on stop recording");
+    // setStatus('Ready');
     // Update indicator if visible
     updateIndicatorState(false);
   };
@@ -390,13 +396,21 @@ function App() {
     info("start: processAudioChunk");
     const audioProcessingStart = performance.now();
 
-    // Don't process if recording has been stopped
+    // Don't process if recording has been stopped - check early to prevent duplicates
     if (!audioManagerRef.current.getIsRecording()) {
-      info("Recording stopped, skipping audio chunk processing");
+      info("⏹️ Recording stopped, skipping audio chunk processing");
+      // Clear any pending chunks to prevent them from being processed later
+      audioManagerRef.current.clearAudioChunks();
       return;
     }
+
     const chunks = audioManagerRef.current.getAudioChunks();
-    if (chunks.length === 0) return;
+    if (chunks.length === 0) {
+      info("🧹 No audio chunks to process");
+      return;
+    }
+
+    info(`🎤 Processing ${chunks.length} audio chunks`);
     const combined = mergeFloat32Arrays(chunks);
     audioManagerRef.current.clearAudioChunks(); // Reset even if error
 
