@@ -147,6 +147,11 @@ function App() {
     }
   };
 
+  // Update indicator when analysis starts/stops
+  useEffect(() => {
+    updateIndicatorState(isRecording, isAnalyzing);
+  }, [isRecording, isAnalyzing]);
+
   // Audio State (now using refs)
 
   useEffect(() => {
@@ -240,9 +245,9 @@ function App() {
   };
 
   // Update indicator window with current recording state
-  const updateIndicatorState = async (isRecording) => {
+  const updateIndicatorState = async (isRecording, isAnalyzing = false) => {
     try {
-      await window.electronAPI.updateIndicator({ isRecording });
+      await window.electronAPI.updateIndicator({ isRecording, isAnalyzing });
     } catch (error) {
       logError('Error updating indicator:', error);
     }
@@ -585,6 +590,16 @@ function App() {
       window.electronAPI.onTriggerStopRecording(handleTriggerStopRecording);
     }
 
+    // Set up listener for analyze conversation shortcut
+    const handleTriggerAnalyzeConversation = () => {
+      info('Received global shortcut: Analyze Conversation');
+      handleManualAnalysis();
+    };
+
+    if (window.electronAPI?.onTriggerAnalyzeConversation) {
+      window.electronAPI.onTriggerAnalyzeConversation(handleTriggerAnalyzeConversation);
+    }
+
     return () => {
       if (window.electronAPI?.removeTriggerStartRecordingListener) {
         window.electronAPI.removeTriggerStartRecordingListener(handleTriggerStartRecording);
@@ -592,8 +607,11 @@ function App() {
       if (window.electronAPI?.removeTriggerStopRecordingListener) {
         window.electronAPI.removeTriggerStopRecordingListener(handleTriggerStopRecording);
       }
+      if (window.electronAPI?.removeTriggerAnalyzeConversationListener) {
+        window.electronAPI.removeTriggerAnalyzeConversationListener(handleTriggerAnalyzeConversation);
+      }
     };
-  }, [isRecording]);
+  }, [isRecording, currentQuestion, conversationBufferRef.current]);
 
   // Listen for interview question data from extension
   useEffect(() => {
@@ -697,6 +715,9 @@ function App() {
               const result = await window.electronAPI.setTestInterviewData(testData);
               if (result.success) {
                 info('🎯 Test: Interview data set successfully in both frontend and backend');
+                // Also set the question in the frontend state
+                setCurrentQuestion(testData.data.problem);
+                info('🎯 Test: Question set in frontend state:', testData.data.problem.title);
               } else {
                 logError('Error setting test data:', result.error);
               }

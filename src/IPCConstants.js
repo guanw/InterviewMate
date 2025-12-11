@@ -23,6 +23,7 @@ const IPC_SET_TEST_INTERVIEW_DATA = 'set-test-interview-data';
 const IPC_TRIGGER_START_RECORDING = 'trigger-start-recording';
 const IPC_TRIGGER_STOP_RECORDING = 'trigger-stop-recording';
 const IPC_UPDATE_INDICATOR = 'update-indicator';
+const IPC_TRIGGER_ANALYZE_CONVERSATION = 'trigger-analyze-conversation';
 
 module.exports = {
   IPC_TRANSCRIBE_AUDIO,
@@ -46,5 +47,6 @@ module.exports = {
   IPC_SET_TEST_INTERVIEW_DATA,
   IPC_TRIGGER_START_RECORDING,
   IPC_TRIGGER_STOP_RECORDING,
-  IPC_UPDATE_INDICATOR
+  IPC_UPDATE_INDICATOR,
+  IPC_TRIGGER_ANALYZE_CONVERSATION
 };

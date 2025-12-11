@@ -43,7 +43,8 @@ const {
   IPC_SET_TEST_INTERVIEW_DATA,
   IPC_TRIGGER_START_RECORDING,
   IPC_TRIGGER_STOP_RECORDING,
-  IPC_UPDATE_INDICATOR
+  IPC_UPDATE_INDICATOR,
+  IPC_TRIGGER_ANALYZE_CONVERSATION
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -321,6 +322,14 @@ app.whenReady().then(() => {
 
     info('Window movement shortcuts registered: Cmd/Ctrl + Arrow Keys, Cmd/Ctrl + M (randomize)');
     info('Recording shortcuts registered: Cmd/Ctrl + Shift + S (start), Cmd/Ctrl + Shift + X (stop)');
+
+    // Register global shortcut for analyze conversation
+    globalShortcut.register('CmdOrCtrl+Shift+/', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      info('Global shortcut: Analyze Conversation triggered');
+      mainWindow.webContents.send(IPC_TRIGGER_ANALYZE_CONVERSATION);
+    });
+    info('Analyze conversation shortcut registered: Cmd/Ctrl + Shift + /');
 
     // Register global shortcut to open DevTools on indicator window
     globalShortcut.register('CmdOrCtrl+Shift+U', () => {

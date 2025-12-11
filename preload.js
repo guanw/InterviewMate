@@ -23,6 +23,7 @@ const {
   IPC_TRIGGER_START_RECORDING,
   IPC_TRIGGER_STOP_RECORDING,
   IPC_UPDATE_INDICATOR,
+  IPC_TRIGGER_ANALYZE_CONVERSATION,
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -95,5 +96,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   removeIndicatorUpdateListener: (callback) => {
     ipcRenderer.removeListener(IPC_UPDATE_INDICATOR, callback);
+  },
+
+  // Global shortcut trigger for analyze conversation
+  onTriggerAnalyzeConversation: (callback) => {
+    ipcRenderer.on(IPC_TRIGGER_ANALYZE_CONVERSATION, callback);
+  },
+  removeTriggerAnalyzeConversationListener: (callback) => {
+    ipcRenderer.removeListener(IPC_TRIGGER_ANALYZE_CONVERSATION, callback);
   }
 });

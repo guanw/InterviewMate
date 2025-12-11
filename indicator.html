@@ -92,6 +92,10 @@
         <span class="action">Random Position</span>
         <span class="key">⌘M</span>
       </div>
+      <div class="shortcut" id="analyzeShortcut">
+        <span class="action">Analyze Conversation</span>
+        <span class="key">⌘⇧/</span>
+      </div>
     </div>
 
     <script>
@@ -100,6 +104,7 @@
       const statusText = document.getElementById("statusText");
       const startShortcut = document.getElementById("startShortcut");
       const stopShortcut = document.getElementById("stopShortcut");
+      const analyzeShortcut = document.getElementById("analyzeShortcut");
 
       // Listen for IPC messages from main process using electronAPI
       if (window.electronAPI?.onIndicatorUpdate) {
@@ -118,18 +123,26 @@
       }
 
       function updateIndicator(data) {
-        const { isRecording } = data;
+        const { isRecording, isAnalyzing } = data;
 
         if (isRecording) {
           statusIndicator.classList.add("recording");
           statusText.textContent = "Recording...";
           startShortcut.classList.remove("active");
           stopShortcut.classList.add("active");
+          analyzeShortcut.classList.remove("active");
+        } else if (isAnalyzing) {
+          statusIndicator.classList.remove("recording");
+          statusText.textContent = "Analyzing...";
+          startShortcut.classList.add("active");
+          stopShortcut.classList.remove("active");
+          analyzeShortcut.classList.add("active");
         } else {
           statusIndicator.classList.remove("recording");
           statusText.textContent = "Ready";
           startShortcut.classList.add("active");
           stopShortcut.classList.remove("active");
+          analyzeShortcut.classList.remove("active");
         }
       }
 
