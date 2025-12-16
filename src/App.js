@@ -652,12 +652,7 @@ function App() {
   return React.createElement('div', null,
     React.createElement('div', { className: 'top-row' },
       React.createElement('div', { className: 'control-panel' },
-        // Manual Analysis Button (always available)
-        React.createElement('button', {
-          onClick: handleManualAnalysis,
-          disabled: isAnalyzing || (!currentQuestion && !conversationBufferRef.current?.trim()),
-          className: 'analyze-btn'
-        }, isAnalyzing ? '🔄 Analyzing...' : '🧠 Analyze Conversation'),
+        // Manual Analysis Button removed - use Cmd+Shift+/ global shortcut instead
 
         React.createElement('button', {
           onClick: clearConversationBuffer,
