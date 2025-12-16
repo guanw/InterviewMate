@@ -119,13 +119,29 @@ function App() {
     } catch (err) {
       logError('LLM call failed:', err);
       setLlmResponse('Failed to analyze conversation');
+    } finally {
+      setIsAnalyzing(false);
     }
-    setIsAnalyzing(false);
   };
 
   const handleManualAnalysis = async () => {
+    // Prevent multiple simultaneous analyses
+    if (isAnalyzing) {
+      info('🚫 Analysis already in progress, ignoring duplicate trigger');
+      return;
+    }
+
+    // Get current state values at time of trigger to avoid closure issues
     const currentBuffer = conversationBufferRef.current;
-    info('🎯 Manual analysis button clicked');
+    const currentQuestion = await new Promise(resolve => {
+      // Use setState callback to get current value
+      setCurrentQuestion(prev => {
+        resolve(prev);
+        return prev;
+      });
+    });
+
+    info('🎯 Manual analysis triggered');
     info('Current buffer length:', currentBuffer ? currentBuffer.length : 0);
     info('Current question available:', !!currentQuestion);
 
@@ -184,11 +200,12 @@ function App() {
     setMetricsSummary(null);
   };
 
-  // Function to manually clear conversation buffer
+  // Function to manually clear conversation buffer and attached question
   const clearConversationBuffer = () => {
-    info('🧹 User manually clearing conversation buffer (keeping current question)');
+    info('🧹 User manually clearing conversation buffer and attached question');
     conversationBufferRef.current = '';
-    setLlmResponse('Conversation buffer cleared. Ready for follow-up questions.');
+    setCurrentQuestion(null);
+    setLlmResponse('Conversation buffer and question cleared. Ready for new analysis.');
     setAnalysisType(null);
     setCompressionInfo(null);
   };
@@ -209,6 +226,11 @@ function App() {
       if (result.success) {
         info(`Cache cleared: removed ${result.removedCount} entries`);
         await updateCacheStats();
+        // Also clear the cached result display
+        setLastAnalysisCached(false);
+        setLlmResponse('Cache cleared. Ready for new analysis.');
+        setAnalysisType(null);
+        setCompressionInfo(null);
       } else {
         logError('Error clearing cache:', result.error);
       }
@@ -565,7 +587,7 @@ function App() {
     };
   }, []);
 
-  // Listen for global shortcut events from main process
+  // Set up global shortcut listeners without useEffect
   useEffect(() => {
     const handleTriggerStartRecording = () => {
       info('Received global shortcut: Start Recording');
@@ -581,21 +603,18 @@ function App() {
       }
     };
 
-    // Set up listeners (these would need to be added to preload.js first)
-    // For now, we'll handle them directly if the API exists
+    const handleTriggerAnalyzeConversation = () => {
+      info('Received global shortcut: Analyze Conversation');
+      handleManualAnalysis();
+    };
+
+    // Set up listeners
     if (window.electronAPI?.onTriggerStartRecording) {
       window.electronAPI.onTriggerStartRecording(handleTriggerStartRecording);
     }
     if (window.electronAPI?.onTriggerStopRecording) {
       window.electronAPI.onTriggerStopRecording(handleTriggerStopRecording);
     }
-
-    // Set up listener for analyze conversation shortcut
-    const handleTriggerAnalyzeConversation = () => {
-      info('Received global shortcut: Analyze Conversation');
-      handleManualAnalysis();
-    };
-
     if (window.electronAPI?.onTriggerAnalyzeConversation) {
       window.electronAPI.onTriggerAnalyzeConversation(handleTriggerAnalyzeConversation);
     }
@@ -611,7 +630,7 @@ function App() {
         window.electronAPI.removeTriggerAnalyzeConversationListener(handleTriggerAnalyzeConversation);
       }
     };
-  }, [isRecording, currentQuestion, conversationBufferRef.current]);
+  }, []);
 
   // Listen for interview question data from extension
   useEffect(() => {
