@@ -619,6 +619,33 @@ function App() {
       window.electronAPI.onTriggerAnalyzeConversation(handleTriggerAnalyzeConversation);
     }
 
+    // Set up LLM scrolling listeners
+    const handleScrollLlmUp = () => {
+      info('Received global shortcut: Scroll LLM response up');
+      const llmResponseElement = document.querySelector('.llm-response');
+      if (llmResponseElement) {
+        llmResponseElement.scrollTop = Math.max(0, llmResponseElement.scrollTop - 100);
+      }
+    };
+
+    const handleScrollLlmDown = () => {
+      info('Received global shortcut: Scroll LLM response down');
+      const llmResponseElement = document.querySelector('.llm-response');
+      if (llmResponseElement) {
+        llmResponseElement.scrollTop = Math.min(
+          llmResponseElement.scrollHeight - llmResponseElement.clientHeight,
+          llmResponseElement.scrollTop + 100
+        );
+      }
+    };
+
+    if (window.electronAPI?.onScrollLlmUp) {
+      window.electronAPI.onScrollLlmUp(handleScrollLlmUp);
+    }
+    if (window.electronAPI?.onScrollLlmDown) {
+      window.electronAPI.onScrollLlmDown(handleScrollLlmDown);
+    }
+
     return () => {
       if (window.electronAPI?.removeTriggerStartRecordingListener) {
         window.electronAPI.removeTriggerStartRecordingListener(handleTriggerStartRecording);
@@ -628,6 +655,12 @@ function App() {
       }
       if (window.electronAPI?.removeTriggerAnalyzeConversationListener) {
         window.electronAPI.removeTriggerAnalyzeConversationListener(handleTriggerAnalyzeConversation);
+      }
+      if (window.electronAPI?.removeScrollLlmUpListener) {
+        window.electronAPI.removeScrollLlmUpListener(handleScrollLlmUp);
+      }
+      if (window.electronAPI?.removeScrollLlmDownListener) {
+        window.electronAPI.removeScrollLlmDownListener(handleScrollLlmDown);
       }
     };
   }, []);

@@ -24,6 +24,8 @@ const {
   IPC_TRIGGER_STOP_RECORDING,
   IPC_UPDATE_INDICATOR,
   IPC_TRIGGER_ANALYZE_CONVERSATION,
+  IPC_SCROLL_LLM_UP,
+  IPC_SCROLL_LLM_DOWN,
 } = require('./src/IPCConstants.js');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -104,5 +106,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   removeTriggerAnalyzeConversationListener: (callback) => {
     ipcRenderer.removeListener(IPC_TRIGGER_ANALYZE_CONVERSATION, callback);
+  },
+
+  // LLM response scrolling shortcuts
+  onScrollLlmUp: (callback) => {
+    ipcRenderer.on(IPC_SCROLL_LLM_UP, callback);
+  },
+  removeScrollLlmUpListener: (callback) => {
+    ipcRenderer.removeListener(IPC_SCROLL_LLM_UP, callback);
+  },
+
+  onScrollLlmDown: (callback) => {
+    ipcRenderer.on(IPC_SCROLL_LLM_DOWN, callback);
+  },
+  removeScrollLlmDownListener: (callback) => {
+    ipcRenderer.removeListener(IPC_SCROLL_LLM_DOWN, callback);
   }
 });

@@ -44,7 +44,9 @@ const {
   IPC_TRIGGER_START_RECORDING,
   IPC_TRIGGER_STOP_RECORDING,
   IPC_UPDATE_INDICATOR,
-  IPC_TRIGGER_ANALYZE_CONVERSATION
+  IPC_TRIGGER_ANALYZE_CONVERSATION,
+  IPC_SCROLL_LLM_DOWN,
+  IPC_SCROLL_LLM_UP,
 } = require('./src/IPCConstants.js');
 
 // Audio constants (matching src/Constants.js)
@@ -74,7 +76,7 @@ function createIndicatorWindow() {
 
   indicatorWindow = new BrowserWindow({
     width: 220,
-    height: 120,
+    height: 160,
     x: width - 230, // Top-right corner with some margin
     y: 40,
     frame: false,
@@ -341,6 +343,21 @@ app.whenReady().then(() => {
       }
     });
     info('DevTools shortcut registered: Cmd/Ctrl + Shift + U (for indicator window)');
+
+    // Register LLM response scrolling shortcuts
+    globalShortcut.register('CmdOrCtrl+Shift+Up', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      info('Global shortcut: Scroll LLM response up');
+      mainWindow.webContents.send(IPC_SCROLL_LLM_UP);
+    });
+
+    globalShortcut.register('CmdOrCtrl+Shift+Down', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      info('Global shortcut: Scroll LLM response down');
+      mainWindow.webContents.send(IPC_SCROLL_LLM_DOWN);
+    });
+
+    info('LLM response scrolling shortcuts registered: Cmd/Ctrl + Shift + Up/Down');
   };
 
   // Register the shortcuts
@@ -399,6 +416,21 @@ app.on('will-quit', () => {
 
   if (localServer) {
     localServer.stop();
+  }
+});
+
+// Handle scroll commands from indicator window
+ipcMain.on('scroll-llm-up', (_event) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    info('Forwarding scroll LLM up command from indicator window');
+    mainWindow.webContents.send(IPC_SCROLL_LLM_UP);
+  }
+});
+
+ipcMain.on('scroll-llm-down', (_event) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    info('Forwarding scroll LLM down command from indicator window');
+    mainWindow.webContents.send(IPC_SCROLL_LLM_DOWN);
   }
 });
 

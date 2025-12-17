@@ -24,6 +24,8 @@ const IPC_TRIGGER_START_RECORDING = 'trigger-start-recording';
 const IPC_TRIGGER_STOP_RECORDING = 'trigger-stop-recording';
 const IPC_UPDATE_INDICATOR = 'update-indicator';
 const IPC_TRIGGER_ANALYZE_CONVERSATION = 'trigger-analyze-conversation';
+const IPC_SCROLL_LLM_UP = 'scroll-llm-up';
+const IPC_SCROLL_LLM_DOWN = 'scroll-llm-down';
 
 module.exports = {
   IPC_TRANSCRIBE_AUDIO,
@@ -48,5 +50,7 @@ module.exports = {
   IPC_TRIGGER_START_RECORDING,
   IPC_TRIGGER_STOP_RECORDING,
   IPC_UPDATE_INDICATOR,
-  IPC_TRIGGER_ANALYZE_CONVERSATION
+  IPC_TRIGGER_ANALYZE_CONVERSATION,
+  IPC_SCROLL_LLM_UP,
+  IPC_SCROLL_LLM_DOWN
 };

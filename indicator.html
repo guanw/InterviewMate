@@ -96,6 +96,14 @@
         <span class="action">Analyze Conversation</span>
         <span class="key">⌘⇧/</span>
       </div>
+      <div class="shortcut">
+        <span class="action">Scroll LLM Up</span>
+        <span class="key">⌘⇧↑</span>
+      </div>
+      <div class="shortcut">
+        <span class="action">Scroll LLM Down</span>
+        <span class="key">⌘⇧↓</span>
+      </div>
     </div>
 
     <script>
@@ -148,6 +156,27 @@
 
       // Initialize
       updateIndicator({ isRecording: false });
+
+      // Set up LLM scrolling listeners
+      if (window.electronAPI?.onScrollLlmUp) {
+        window.electronAPI.onScrollLlmUp(() => {
+          console.log('📥 [INDICATOR] Received scroll LLM up command');
+          // Send message to main window to scroll LLM response up
+          if (window.electronAPI?.sendToMain) {
+            window.electronAPI.sendToMain('scroll-llm-up');
+          }
+        });
+      }
+
+      if (window.electronAPI?.onScrollLlmDown) {
+        window.electronAPI.onScrollLlmDown(() => {
+          console.log('📥 [INDICATOR] Received scroll LLM down command');
+          // Send message to main window to scroll LLM response down
+          if (window.electronAPI?.sendToMain) {
+            window.electronAPI.sendToMain('scroll-llm-down');
+          }
+        });
+      }
     </script>
   </body>
 </html>
