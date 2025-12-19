@@ -16,7 +16,7 @@ const llmConfig = {
 
   groq: {
     model: 'qwen/qwen3-32b', // Qwen 32B model on Groq
-    maxTokens: 8000, // Groq has higher limits
+    maxTokens: 20000, // Groq has higher limits
     temperature: 0.7
   }
 };
