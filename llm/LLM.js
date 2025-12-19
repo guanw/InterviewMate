@@ -167,11 +167,10 @@ ${processedConversationBuffer && processedConversationBuffer.trim() ? `**FOLLOW-
 
 **ANALYSIS REQUIREMENTS:**
 1. First, provide a detailed solution to the primary question with:
-   - Clear explanation of the approach
-   - Step-by-step algorithm
-   - Time and space complexity analysis
-   - Complete, working PYTHON code solution
+   - Explanation of the approach
+   - Complete, working PYTHON code solution. Let's start with brute-force solution first and then gradually followed by more-optimized solution until the most optimized solution and use ---- line to separate them up so it's clear to see
    - Test cases and edge cases
+   - Time and space complexity analysis
 
 2. If there's follow-up conversation context, address any additional questions or clarifications mentioned
 
