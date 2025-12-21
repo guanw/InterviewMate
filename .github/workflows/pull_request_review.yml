@@ -1,0 +1,26 @@
+name: Pull Request Review
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run ESLint for JavaScript
+        run: npx eslint .
+
+      - name: Enforce Clean Code principles
+        run: node .reviewmate/scripts/enforce_clean_code.js
