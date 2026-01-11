@@ -2,25 +2,55 @@ name: Pull Request Review
 
 on:
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened]
 
 jobs:
   review:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "18"
 
-      - name: Install dependencies
+      - name: Install Node.js dependencies
         run: npm install
 
-      - name: Run ESLint for JavaScript
-        run: npx eslint .
+      - name: Run ESLint
+        run: npm run lint
 
-      - name: Enforce Clean Code principles
-        run: node .reviewmate/scripts/enforce_clean_code.js
+      - name: Enforce clean code
+        run: node scripts/enforce_clean_code.js
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }})
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Analyze diff with AI
+        id: ai_analysis
+        run: |
+          # Replace with your Render backend URL (e.g., https://reviewmate-backend.onrender.com)
+          BACKEND_URL="${{ secrets.BACKEND_URL }}"
+          RESPONSE=$(curl -s -X POST "$BACKEND_URL/analyze-diff" \
+            -H "Content-Type: application/json" \
+            -d "{\"diff\": \"${{ steps.diff.outputs.diff }}\", \"pr_url\": \"${{ github.event.pull_request.html_url }}\"}")
+          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
+
+      - name: Post AI review comment
+        run: |
+          COMMENT="🤖 **AI Code Review**\n\n${{ steps.ai_analysis.outputs.response }}"
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
