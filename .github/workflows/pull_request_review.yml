@@ -38,8 +38,9 @@ jobs:
 
       - name: Post AI review comment
         run: |
-          RESPONSE="${{ steps.ai_analysis.outputs.response }}"
-          COMMENT=$(printf "🤖 **AI Code Review**\n\n%s" "$RESPONSE")
+          RESPONSE_JSON="${{ steps.ai_analysis.outputs.response }}"
+          MESSAGE=$(echo "$RESPONSE_JSON" | jq -r '.message // .detail // "Analysis failed"')
+          COMMENT=$(printf "🤖 **AI Code Review**\n\n%s" "$MESSAGE")
           gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
