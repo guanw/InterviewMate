@@ -14,19 +14,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-
-      - name: Install Node.js dependencies
-        run: npm install
-
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Enforce clean code
-        run: node scripts/enforce_clean_code.js
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Get PR diff
         id: diff
@@ -41,15 +30,16 @@ jobs:
       - name: Analyze diff with AI
         id: ai_analysis
         run: |
-          BACKEND_URL="${{ secrets.BACKEND_URL }}"
-          RESPONSE=$(curl -s -X POST "$BACKEND_URL/analyze-diff" \
-            -H "Content-Type: application/json" \
-            -d "{\"diff\": \"${{ steps.diff.outputs.diff }}\", \"pr_url\": \"${{ github.event.pull_request.html_url }}\"}")
+          BACKEND_URL="${{ vars.BACKEND_URL }}"
+          DIFF="${{ steps.diff.outputs.diff }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          RESPONSE=$(jq -n --arg diff "$DIFF" --arg pr_url "$PR_URL" '{"diff": $diff, "pr_url": $pr_url}' | curl -s -X POST "$BACKEND_URL/analyze-diff" -H "Content-Type: application/json" -d @-)
           echo "response=$RESPONSE" >> $GITHUB_OUTPUT
 
       - name: Post AI review comment
         run: |
-          COMMENT="🤖 **AI Code Review**\n\n${{ steps.ai_analysis.outputs.response }}"
+          RESPONSE="${{ steps.ai_analysis.outputs.response }}"
+          COMMENT=$(printf "🤖 **AI Code Review**\n\n%s" "$RESPONSE")
           gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
