@@ -41,7 +41,6 @@ jobs:
       - name: Analyze diff with AI
         id: ai_analysis
         run: |
-          # Replace with your Render backend URL (e.g., https://reviewmate-backend.onrender.com)
           BACKEND_URL="${{ secrets.BACKEND_URL }}"
           RESPONSE=$(curl -s -X POST "$BACKEND_URL/analyze-diff" \
             -H "Content-Type: application/json" \
