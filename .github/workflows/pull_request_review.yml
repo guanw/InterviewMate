@@ -21,9 +21,7 @@ jobs:
         id: diff
         run: |
           DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }})
-          echo "diff<<EOF" >> $GITHUB_OUTPUT
-          echo "$DIFF" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "diff_b64=$(echo "$DIFF" | base64 -w 0)" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -31,15 +29,18 @@ jobs:
         id: ai_analysis
         run: |
           BACKEND_URL="${{ vars.BACKEND_URL }}"
-          DIFF="${{ steps.diff.outputs.diff }}"
+          DIFF_B64="${{ steps.diff.outputs.diff_b64 }}"
+          DIFF=$(echo "$DIFF_B64" | base64 -d)
           PR_URL="${{ github.event.pull_request.html_url }}"
           RESPONSE=$(jq -n --arg diff "$DIFF" --arg pr_url "$PR_URL" '{"diff": $diff, "pr_url": $pr_url}' | curl -s -X POST "$BACKEND_URL/analyze-diff" -H "Content-Type: application/json" -d @-)
-          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" > response.json
+          echo "response_file=response.json" >> $GITHUB_OUTPUT
 
       - name: Post AI review comment
         run: |
-          RESPONSE="${{ steps.ai_analysis.outputs.response }}"
-          COMMENT=$(printf "🤖 **AI Code Review**\n\n%s" "$RESPONSE")
+          RESPONSE_FILE="${{ steps.ai_analysis.outputs.response_file }}"
+          MESSAGE=$(jq -r '.message // .detail // "Analysis failed"' "$RESPONSE_FILE")
+          COMMENT=$(printf "🤖 **AI Code Review**\n\n%s" "$MESSAGE")
           gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
