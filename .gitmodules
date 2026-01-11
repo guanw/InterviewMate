@@ -1,6 +1,3 @@
 [submodule "interview-extension"]
 	path = interview-extension
 	url = git@github.com:guanw/InterviewMate-Chrome-Extension.git
-[submodule ".reviewmate"]
-	path = .reviewmate
-	url = https://github.com/guanw/ReviewMate.git
