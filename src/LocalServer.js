@@ -1,9 +1,10 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
-const { log } = require('./Logging.js');
-const { IPC_INTERVIEW_QUESTION_RECEIVED } = require('./IPCConstants.js');
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+const { createWorker } = require("tesseract.js");
+const { log } = require("./Logging.js");
+const { IPC_INTERVIEW_QUESTION_RECEIVED } = require("./IPCConstants.js");
 
 class LocalServer {
   constructor(ipcMain) {
@@ -19,7 +20,7 @@ class LocalServer {
 
   async start(mainWindow) {
     if (this.isRunning) {
-      log('Server is already running');
+      log("Server is already running");
       return;
     }
 
@@ -31,24 +32,24 @@ class LocalServer {
 
       // Middleware
       this.app.use(cors());
-      this.app.use(express.json());
+      this.app.use(express.json({ limit: "50mb" }));
 
       // Health check endpoint
-      this.app.get('/api/health', (req, res) => {
+      this.app.get("/api/health", (req, res) => {
         res.json({
-          status: 'healthy',
+          status: "healthy",
           timestamp: new Date().toISOString(),
-          message: 'Interview Extractor Server (Electron) is running'
+          message: "Interview Extractor Server (Electron) is running",
         });
       });
 
-      // Main data endpoint - receives extracted Interview content
-      this.app.post('/api/interview-question-data', (req, res) => {
-        this.handleInterviewData(req.body);
+      // OCR extraction endpoint - receives screenshot for OCR processing
+      this.app.post("/api/extract-ocr", (req, res) => {
+        this.handleOCRData(req.body);
         res.json({
           success: true,
-          message: 'Data received successfully',
-          processedAt: new Date().toISOString()
+          message: "OCR data received and processing started",
+          processedAt: new Date().toISOString(),
         });
       });
 
@@ -56,96 +57,103 @@ class LocalServer {
       this.server = this.app.listen(this.PORT, () => {
         log(`🚀 Interview Extractor Server running on port ${this.PORT}`);
         log(`📊 Health check: http://localhost:${this.PORT}/api/health`);
-        log(`📥 Data endpoint: http://localhost:${this.PORT}/api/interview-question-data`);
-        log('Waiting for data from Chrome extension...\n');
+        log(
+          `📥 Data endpoint: http://localhost:${this.PORT}/api/interview-question-data`,
+        );
+        log("Waiting for data from Chrome extension...\n");
         this.isRunning = true;
       });
-
     } catch (error) {
-      error('Error starting server:', error);
+      log("Error starting server:", error);
       throw error;
     }
   }
 
-  handleInterviewData(data) {
+  async handleOCRData(data) {
     try {
-      log('\n=== Interview Data Received ===');
-      log('Timestamp:', data.timestamp);
-      log('Extension ID:', data.extensionId);
-      log('URL:', data.data?.url);
+      log("\n=== OCR Data Received ===");
+      log("Timestamp:", data.timestamp);
+      log("Extension ID:", data.extensionId);
+      log("URL:", data.url);
 
-      // Store the interview data in memory for analysis
+      // Decode base64 image
+      const base64Data = data.image.replace(/^data:image\/png;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      log("Image buffer size:", buffer.length, "bytes");
+
+      // Perform OCR
+      log("🔄 Starting OCR processing...");
+      const worker = await createWorker("eng");
+      const {
+        data: { text },
+      } = await worker.recognize(buffer);
+      await worker.terminate();
+
+      log("✅ OCR processing completed");
+      log("OCR Text length:", text.length, "characters");
+      log(
+        "OCR Text Extracted (first 200 chars):",
+        text.substring(0, 200) + (text.length > 200 ? "..." : ""),
+      );
+
+      // Store the OCR data in memory for analysis
       this.currentInterviewData = {
-        ...data.data,
+        text,
+        url: data.url,
         receivedAt: data.timestamp,
-        extensionId: data.extensionId
+        extensionId: data.extensionId,
       };
 
-      if (data.data?.problem) {
-        log('\n--- Problem Information ---');
-        log('Title:', data.data.problem.title);
-      }
-
-      if (data.data?.code) {
-        log('\n--- Code Information ---');
-        log('Code Type:', data.data.code.monaco ? 'Monaco' :
-                                        data.data.code.codemirror ? 'CodeMirror' :
-                                        data.data.code.textarea ? 'Textarea' : 'None');
-
-        const codeData = data.data.code.monaco || data.data.code.codemirror || data.data.code.textarea || {};
-        log('Content:', codeData.content ?
-            `${codeData.content.substring(0, 100)}...` : 'No content');
-        log('Language:', codeData.language || 'unknown');
-      }
-
-      log('\n💾 Interview data stored in memory for analysis');
-      log('🎯 New question available for analysis via conversationBuffer');
+      log("\n💾 OCR data stored in memory for analysis");
+      log("🎯 New OCR text available for LLM analysis");
 
       // Process the data (save to file)
-      this.processExtractedData(data.data);
+      this.processOCRData({ text, url: data.url });
 
       // Send to renderer via IPC
       if (this.mainWindow) {
-        log('📤 Sending IPC event to renderer: interview-question-received');
+        log("📤 Sending IPC event to renderer: ocr-question-received");
         this.mainWindow.webContents.send(IPC_INTERVIEW_QUESTION_RECEIVED, {
-          type: 'interview-question-question',
+          type: "ocr-question",
           timestamp: data.timestamp,
           extensionId: data.extensionId,
-          data: data.data
+          data: { text, url: data.url },
         });
-        log('✅ IPC event sent successfully');
+        log("✅ IPC event sent successfully");
       } else {
-        log('❌ Main window not available for IPC');
+        log("❌ Main window not available for IPC");
       }
-
     } catch (error) {
-      error('Error processing Interview data:', error);
+      log("❌ Error processing OCR data:", error);
+      console.error("OCR Error details:", error);
     }
   }
 
-  processExtractedData(data) {
+  processOCRData(data) {
     try {
-      // Save data to file for demonstration
-      const filename = `interview-question-data-${Date.now()}.json`;
-      const dataDir = path.join(__dirname, '..', 'extracted-data');
+      // Save OCR data to file
+      const filename = `ocr-data-${Date.now()}.json`;
+      const dataDir = path.join(__dirname, "..", "extracted-data");
 
       // Create data directory if it doesn't exist
       if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
       }
 
-      fs.writeFileSync(path.join(dataDir, filename), JSON.stringify(data, null, 2));
-      log(`📁 Data saved to: ${path.join(dataDir, filename)}`);
-
+      fs.writeFileSync(
+        path.join(dataDir, filename),
+        JSON.stringify(data, null, 2),
+      );
+      log(`📁 OCR data saved to: ${path.join(dataDir, filename)}`);
     } catch (error) {
-      error('Error saving data:', error);
+      log("Error saving OCR data:", error);
     }
   }
 
   stop() {
     if (this.server) {
       this.server.close(() => {
-        log('Server closed');
+        log("Server closed");
         this.isRunning = false;
       });
     }
@@ -159,7 +167,7 @@ class LocalServer {
       endpoints: {
         health: `http://localhost:${this.PORT}/api/health`,
         data: `http://localhost:${this.PORT}/api/interview-question-data`,
-      }
+      },
     };
   }
 
@@ -170,7 +178,7 @@ class LocalServer {
 
   // Clear current interview data (when user extracts new question)
   clearCurrentInterviewData() {
-    log('🧹 Clearing current interview data from memory');
+    log("🧹 Clearing current interview data from memory");
     this.currentInterviewData = null;
   }
 

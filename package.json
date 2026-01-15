@@ -23,6 +23,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "openai": "^6.9.1",
     "prettier": "^3.7.4",
+    "tesseract.js": "^7.0.0",
     "whisper-node": "^1.1.1"
   }
 }

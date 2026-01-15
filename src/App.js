@@ -1,13 +1,19 @@
-import React from 'react';
-import { SAMPLE_RATE, CHANNELS, BIT_DEPTH, MAX_LENGTH, FILLER_WORDS } from './Constants.js';
-import { AudioManager } from './AudioManager.js';
-import { TranscriptEntry } from './TranscriptEntry.js';
-import { MetricsManager } from './MetricsManager.js';
-import { MetricsDisplay } from './MetricsDisplay.js';
-import { SearchBox } from './SearchBox.js';
-import { SearchProvider, useSearch } from './SearchContext.js';
+import React from "react";
+import {
+  SAMPLE_RATE,
+  CHANNELS,
+  BIT_DEPTH,
+  MAX_LENGTH,
+  FILLER_WORDS,
+} from "./Constants.js";
+import { AudioManager } from "./AudioManager.js";
+import { TranscriptEntry } from "./TranscriptEntry.js";
+import { MetricsManager } from "./MetricsManager.js";
+import { MetricsDisplay } from "./MetricsDisplay.js";
+import { SearchBox } from "./SearchBox.js";
+import { SearchProvider, useSearch } from "./SearchContext.js";
 
-import { log, error } from './Logging.js';
+import { log, error } from "./Logging.js";
 
 // Convenience aliases for renderer process
 const logError = error;
@@ -16,15 +22,14 @@ const info = log;
 const { useState, useEffect, useRef } = React;
 
 // Constants
-const DEFAULT_ANALYSIS_MESSAGE = 'No analysis yet';
-
+const DEFAULT_ANALYSIS_MESSAGE = "No analysis yet";
 
 // Helper functions
 function mergeFloat32Arrays(arrays) {
   const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
   const result = new Float32Array(totalLength);
   let offset = 0;
-  arrays.forEach(arr => {
+  arrays.forEach((arr) => {
     result.set(arr, offset);
     offset += arr.length;
   });
@@ -37,10 +42,10 @@ function convertToWav(input, sampleRate, channels, bitDepth) {
   const blockAlign = channels * bytesPerSample;
   const buffer = new ArrayBuffer(44 + input.length * bytesPerSample);
   const view = new DataView(buffer);
-  writeString(view, 0, 'RIFF');
+  writeString(view, 0, "RIFF");
   view.setUint32(4, 36 + input.length * bytesPerSample, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, channels, true);
@@ -48,13 +53,13 @@ function convertToWav(input, sampleRate, channels, bitDepth) {
   view.setUint32(28, sampleRate * blockAlign, true);
   view.setUint16(32, blockAlign, true);
   view.setUint16(34, bitDepth, true);
-  writeString(view, 36, 'data');
+  writeString(view, 36, "data");
   view.setUint32(40, input.length * bytesPerSample, true);
   const scale = Math.pow(2, bitDepth - 1);
   for (let i = 0; i < input.length; i++) {
     const sample = Math.max(-1, Math.min(1, input[i]));
     const intSample = sample < 0 ? sample * scale : sample * (scale - 1);
-    view.setInt16(44 + (i * 2), intSample, true);
+    view.setInt16(44 + i * 2, intSample, true);
   }
   info("end: convertToWav");
   return new Uint8Array(buffer);
@@ -70,7 +75,7 @@ function App() {
   // UI state variables (trigger re-renders)
   const [isRecording, setIsRecording] = useState(false);
   const [transcripts, setTranscripts] = useState([]);
-  const [llmResponse, setLlmResponse] = useState('');
+  const [llmResponse, setLlmResponse] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [metricsSummary, setMetricsSummary] = useState(null);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
@@ -83,11 +88,10 @@ function App() {
   const [compressionInfo, setCompressionInfo] = useState(null); // Compression information
 
   // Refs for synchronous access in callbacks and audio management
-  const conversationBufferRef = useRef(''); // Mirrors conversationBuffer state
+  const conversationBufferRef = useRef(""); // Mirrors conversationBuffer state
   const transcriptScrollRef = useRef(null); // Scroll container ref
   const audioManagerRef = useRef(new AudioManager()); // Encapsulates audio-related state
   const metricsManagerRef = useRef(new MetricsManager()); // Performance metrics tracking
-
 
   const performLLMAnalysis = async (buffer) => {
     setIsAnalyzing(true);
@@ -109,16 +113,20 @@ function App() {
 
         // Only track metrics for actual LLM calls (not cache hits)
         if (!result.cached) {
-          metricsManagerRef.current.trackLLMAnalysis(llmStart, llmEnd, buffer.length);
+          metricsManagerRef.current.trackLLMAnalysis(
+            llmStart,
+            llmEnd,
+            buffer.length,
+          );
         }
       } else {
-        logError('LLM error:', result.error);
+        logError("LLM error:", result.error);
         setLlmResponse(`Error: ${result.error}`);
         setAnalysisType(null);
       }
     } catch (err) {
-      logError('LLM call failed:', err);
-      setLlmResponse('Failed to analyze conversation');
+      logError("LLM call failed:", err);
+      setLlmResponse("Failed to analyze conversation");
     } finally {
       setIsAnalyzing(false);
     }
@@ -127,39 +135,42 @@ function App() {
   const handleManualAnalysis = async () => {
     // Prevent multiple simultaneous analyses
     if (isAnalyzing) {
-      info('🚫 Analysis already in progress, ignoring duplicate trigger');
+      info("🚫 Analysis already in progress, ignoring duplicate trigger");
       return;
     }
 
     // Get current state values at time of trigger to avoid closure issues
     const currentBuffer = conversationBufferRef.current;
-    const currentQuestion = await new Promise(resolve => {
+    const currentQuestion = await new Promise((resolve) => {
       // Use setState callback to get current value
-      setCurrentQuestion(prev => {
+      setCurrentQuestion((prev) => {
         resolve(prev);
         return prev;
       });
     });
 
-    info('🎯 Manual analysis triggered');
-    info('Current buffer length:', currentBuffer ? currentBuffer.length : 0);
-    info('Current question available:', !!currentQuestion);
+    info("🎯 Manual analysis triggered");
+    info("Current buffer length:", currentBuffer ? currentBuffer.length : 0);
+    info("Current question available:", !!currentQuestion);
 
     if (currentQuestion) {
       // If we have a question, analyze based on question + conversation (if any)
-      const analysisText = currentBuffer && currentBuffer.trim()
-        ? `${currentQuestion.title}\n${currentQuestion.description}\n\nConversation: ${currentBuffer}`
-        : `${currentQuestion.title}\n${currentQuestion.description}`;
+      const analysisText =
+        currentBuffer && currentBuffer.trim()
+          ? `${currentQuestion.title}\n${currentQuestion.description}\n\nConversation: ${currentBuffer}`
+          : `${currentQuestion.title}\n${currentQuestion.description}`;
 
-      info('✅ Starting analysis with question:', currentQuestion.title);
+      info("✅ Starting analysis with question:", currentQuestion.title);
       await performLLMAnalysis(analysisText);
     } else if (currentBuffer && currentBuffer.trim()) {
       // Fallback to conversation-only analysis
-      info('✅ Starting analysis with conversation buffer');
+      info("✅ Starting analysis with conversation buffer");
       await performLLMAnalysis(currentBuffer);
     } else {
-      info('⚠️ No content to analyze');
-      setLlmResponse('No question or conversation to analyze. Extract a question from the Chrome extension or start speaking.');
+      info("⚠️ No content to analyze");
+      setLlmResponse(
+        "No question or conversation to analyze. Extract a question from the Chrome extension or start speaking.",
+      );
     }
   };
 
@@ -202,10 +213,12 @@ function App() {
 
   // Function to manually clear conversation buffer and attached question
   const clearConversationBuffer = () => {
-    info('🧹 User manually clearing conversation buffer and attached question');
-    conversationBufferRef.current = '';
+    info("🧹 User manually clearing conversation buffer and attached question");
+    conversationBufferRef.current = "";
     setCurrentQuestion(null);
-    setLlmResponse('Conversation buffer and question cleared. Ready for new analysis.');
+    setLlmResponse(
+      "Conversation buffer and question cleared. Ready for new analysis.",
+    );
     setAnalysisType(null);
     setCompressionInfo(null);
   };
@@ -216,7 +229,7 @@ function App() {
       const stats = await window.electronAPI.getCacheStats();
       setCacheStats(stats);
     } catch (error) {
-      logError('Error getting cache stats:', error);
+      logError("Error getting cache stats:", error);
     }
   };
 
@@ -228,14 +241,14 @@ function App() {
         await updateCacheStats();
         // Also clear the cached result display
         setLastAnalysisCached(false);
-        setLlmResponse('Cache cleared. Ready for new analysis.');
+        setLlmResponse("Cache cleared. Ready for new analysis.");
         setAnalysisType(null);
         setCompressionInfo(null);
       } else {
-        logError('Error clearing cache:', result.error);
+        logError("Error clearing cache:", result.error);
       }
     } catch (error) {
-      logError('Error clearing cache:', error);
+      logError("Error clearing cache:", error);
     }
   };
 
@@ -246,7 +259,7 @@ function App() {
       setLLMProviders(providers);
       setCurrentLLMProvider(providers.current);
     } catch (error) {
-      logError('Error loading LLM providers:', error);
+      logError("Error loading LLM providers:", error);
     }
   };
 
@@ -256,13 +269,17 @@ function App() {
       if (result.success) {
         setCurrentLLMProvider(result.current);
         // Also update the providers list to reflect the change
-        setLLMProviders(prev => prev ? { ...prev, current: result.current } : null);
-        info(`Switched to LLM provider: ${providerName} (${result.current?.model})`);
+        setLLMProviders((prev) =>
+          prev ? { ...prev, current: result.current } : null,
+        );
+        info(
+          `Switched to LLM provider: ${providerName} (${result.current?.model})`,
+        );
       } else {
-        logError('Error switching LLM provider:', result.error);
+        logError("Error switching LLM provider:", result.error);
       }
     } catch (error) {
-      logError('Error switching LLM provider:', error);
+      logError("Error switching LLM provider:", error);
     }
   };
 
@@ -271,7 +288,7 @@ function App() {
     try {
       await window.electronAPI.updateIndicator({ isRecording, isAnalyzing });
     } catch (error) {
-      logError('Error updating indicator:', error);
+      logError("Error updating indicator:", error);
     }
   };
 
@@ -296,10 +313,16 @@ function App() {
       // Add highlighted match
       const isCurrent = index === currentMatchIndex;
       elements.push(
-        React.createElement('mark', {
-          key: `highlight-${index}`,
-          className: isCurrent ? 'search-highlight current' : 'search-highlight'
-        }, match.text)
+        React.createElement(
+          "mark",
+          {
+            key: `highlight-${index}`,
+            className: isCurrent
+              ? "search-highlight current"
+              : "search-highlight",
+          },
+          match.text,
+        ),
       );
 
       lastIndex = match.end;
@@ -329,10 +352,12 @@ function App() {
 
       // Get microphone stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+      const audioContext = new (
+        window.AudioContext || window.webkitAudioContext
+      )({ sampleRate: SAMPLE_RATE });
 
       // Resume audio context if suspended (required by some browsers)
-      if (audioContext.state === 'suspended') {
+      if (audioContext.state === "suspended") {
         await audioContext.resume();
       }
 
@@ -342,20 +367,22 @@ function App() {
       microphone.connect(analyser);
 
       // Load and create AudioWorklet
-      await audioContext.audioWorklet.addModule('src/AudioWorkletProcessor.js');
-      const workletNode = new AudioWorkletNode(audioContext, 'audio-processor');
+      await audioContext.audioWorklet.addModule("src/AudioWorkletProcessor.js");
+      const workletNode = new AudioWorkletNode(audioContext, "audio-processor");
 
       // Handle messages from AudioWorklet
       workletNode.port.onmessage = (event) => {
         const { type, data } = event.data;
-        if (type === 'audioData') {
+        if (type === "audioData") {
           // Check if we're still recording before processing
           if (!audioManagerRef.current.getIsRecording()) {
             info("🚫 Received audio data after recording stopped, ignoring");
             return;
           }
           // Process audio chunks from worklet
-          const combined = mergeFloat32Arrays(data.map(arr => new Float32Array(arr)));
+          const combined = mergeFloat32Arrays(
+            data.map((arr) => new Float32Array(arr)),
+          );
           audioManagerRef.current.setAudioChunks([combined]);
           processAudioChunk();
         }
@@ -372,7 +399,7 @@ function App() {
       audioManagerRef.current.setIsRecording(true);
 
       // Start the worklet
-      workletNode.port.postMessage({ type: 'start' });
+      workletNode.port.postMessage({ type: "start" });
 
       setIsRecording(true);
       // Update indicator if visible
@@ -392,7 +419,7 @@ function App() {
     // Stop AudioWorklet
     const workletNode = audioManagerRef.current.getWorkletNode();
     if (workletNode) {
-      workletNode.port.postMessage({ type: 'stop' });
+      workletNode.port.postMessage({ type: "stop" });
       workletNode.disconnect();
     }
 
@@ -402,7 +429,7 @@ function App() {
     const analyser = audioManagerRef.current.getAnalyser();
     if (analyser) analyser.disconnect();
     const audioContext = audioManagerRef.current.getAudioContext();
-    if (audioContext && audioContext.state !== 'closed') audioContext.close();
+    if (audioContext && audioContext.state !== "closed") audioContext.close();
 
     // Clear any audio chunks to prevent them from being processed
     audioManagerRef.current.clearAudioChunks();
@@ -436,8 +463,10 @@ function App() {
 
     // Process VAD to determine if we should transcribe
     try {
-      const vadResult = await window.electronAPI.processVAD(combined.buffer.slice());
-      info(`VAD: ${vadResult.success ? 'processed' : 'failed'}`);
+      const vadResult = await window.electronAPI.processVAD(
+        combined.buffer.slice(),
+      );
+      info(`VAD: ${vadResult.success ? "processed" : "failed"}`);
 
       // Check if we should skip transcription based on VAD
       const shouldSkip = await window.electronAPI.shouldSkipTranscription();
@@ -446,20 +475,32 @@ function App() {
         return; // Skip transcription entirely
       }
     } catch (error) {
-      info("⚠️ VAD processing failed, proceeding with transcription anyway:", error.message);
+      info(
+        "⚠️ VAD processing failed, proceeding with transcription anyway:",
+        error.message,
+      );
       // Continue with transcription if VAD fails
     }
 
     const wavBuffer = convertToWav(combined, SAMPLE_RATE, CHANNELS, BIT_DEPTH);
 
     const audioProcessingEnd = performance.now();
-    metricsManagerRef.current.trackAudioProcessing(audioProcessingStart, audioProcessingEnd, wavBuffer.length);
+    metricsManagerRef.current.trackAudioProcessing(
+      audioProcessingStart,
+      audioProcessingEnd,
+      wavBuffer.length,
+    );
 
     try {
       const transcriptionStart = performance.now();
-      const { success, result, error } = await window.electronAPI.transcribeAudio(wavBuffer);
+      const { success, result, error } =
+        await window.electronAPI.transcribeAudio(wavBuffer);
       const transcriptionEnd = performance.now();
-      metricsManagerRef.current.trackTranscription(transcriptionStart, transcriptionEnd, wavBuffer.length);
+      metricsManagerRef.current.trackTranscription(
+        transcriptionStart,
+        transcriptionEnd,
+        wavBuffer.length,
+      );
       if (success) {
         const segments = Array.isArray(result) ? result : [];
 
@@ -467,51 +508,58 @@ function App() {
         const meaningfulSegments = [];
         const noiseSegments = [];
 
-        segments.forEach(segment => {
+        segments.forEach((segment) => {
           const speech = segment.speech?.trim();
           if (!speech) {
-            noiseSegments.push({ ...segment, filterReason: 'empty' });
+            noiseSegments.push({ ...segment, filterReason: "empty" });
             return;
           }
 
           // Check if segment contains any bracketed or parenthesized content
-          const hasBrackets = speech.includes('[') || speech.includes(']');
-          const hasParentheses = speech.includes('(') || speech.includes(')');
+          const hasBrackets = speech.includes("[") || speech.includes("]");
+          const hasParentheses = speech.includes("(") || speech.includes(")");
 
           let cleanedSpeech = speech;
           let filterReason = null;
 
           if (hasBrackets || hasParentheses) {
             // Remove content within brackets/parentheses for display, but filter out the segment entirely
-            cleanedSpeech = speech.replace(/\[[^\]]*\]/g, '').trim();
-            cleanedSpeech = cleanedSpeech.replace(/\([^)]*\)/g, '').trim();
-            filterReason = 'contains_annotations';
+            cleanedSpeech = speech.replace(/\[[^\]]*\]/g, "").trim();
+            cleanedSpeech = cleanedSpeech.replace(/\([^)]*\)/g, "").trim();
+            filterReason = "contains_annotations";
           }
 
           // Apply unified filtering logic (same for UI and LLM buffer)
           const speechLower = speech.toLowerCase();
 
           if (!filterReason) {
-            if (speechLower.includes('blank audio') ||
-                speechLower.includes('blank_audio') ||
-                speechLower === 'blank audio' ||
-                speechLower === 'blank_audio' ||
-                speechLower.includes('inaudible') ||
-                speechLower === '[inaudible]' ||
-                speechLower === '(inaudible)' ||
-                (speechLower.includes('blank') && speechLower.includes('audio')) ||
-                speechLower.includes('[blank') ||
-                speechLower.includes('blank]')) {
-              filterReason = 'whisper_artifact';
-            } else if (FILLER_WORDS.some(filler => speechLower === filler)) {
-              filterReason = 'filler_word';
+            if (
+              speechLower.includes("blank audio") ||
+              speechLower.includes("blank_audio") ||
+              speechLower === "blank audio" ||
+              speechLower === "blank_audio" ||
+              speechLower.includes("inaudible") ||
+              speechLower === "[inaudible]" ||
+              speechLower === "(inaudible)" ||
+              (speechLower.includes("blank") &&
+                speechLower.includes("audio")) ||
+              speechLower.includes("[blank") ||
+              speechLower.includes("blank]")
+            ) {
+              filterReason = "whisper_artifact";
+            } else if (FILLER_WORDS.some((filler) => speechLower === filler)) {
+              filterReason = "filler_word";
             } else if (speech.length < 2) {
-              filterReason = 'too_short';
+              filterReason = "too_short";
             }
           }
 
           if (filterReason) {
-            noiseSegments.push({ ...segment, filterReason, cleanedSpeech: speech }); // Show original for noise
+            noiseSegments.push({
+              ...segment,
+              filterReason,
+              cleanedSpeech: speech,
+            }); // Show original for noise
           } else {
             // Keep everything else for both UI and conversation buffer
             meaningfulSegments.push({ ...segment, cleanedSpeech });
@@ -525,27 +573,32 @@ function App() {
           timestamp: new Date(),
           totalSegments: segments.length,
           meaningfulCount: meaningfulSegments.length,
-          noiseCount: noiseSegments.length
+          noiseCount: noiseSegments.length,
         };
-        setTranscripts(prev => [newEntry, ...prev]);
+        setTranscripts((prev) => [newEntry, ...prev]);
 
         // Use meaningfulSegments directly for conversation buffer (no separate filtering)
         const filteredSegments = meaningfulSegments;
 
         // Only proceed if we have meaningful segments
         if (filteredSegments.length > 0) {
-          const newText = filteredSegments.map(s => s.cleanedSpeech).join(' ');
+          const newText = filteredSegments
+            .map((s) => s.cleanedSpeech)
+            .join(" ");
           const maxLength = MAX_LENGTH;
           const currentBuffer = conversationBufferRef.current;
-          const updated = currentBuffer + (currentBuffer ? ' ' : '') + newText;
-          const final = updated.length > maxLength ? updated.slice(-maxLength) : updated;
+          const updated = currentBuffer + (currentBuffer ? " " : "") + newText;
+          const final =
+            updated.length > maxLength ? updated.slice(-maxLength) : updated;
           conversationBufferRef.current = final;
-          info(`✅ Added ${newText.length} chars from ${filteredSegments.length} filtered segments (annotations removed)`);
+          info(
+            `✅ Added ${newText.length} chars from ${filteredSegments.length} filtered segments (annotations removed)`,
+          );
         } else {
-          info('🚫 Filtered out all segments - no meaningful speech detected');
+          info("🚫 Filtered out all segments - no meaningful speech detected");
         }
         if (audioManagerRef.current.getIsRecording()) {
-          setStatus('Recording...');
+          setStatus("Recording...");
         }
         info("success: processAudioChunk");
       } else {
@@ -561,20 +614,25 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Allow search input to handle its own events
-      if (e.target.tagName === 'INPUT' && e.target.classList.contains('search-input')) return;
+      if (
+        e.target.tagName === "INPUT" &&
+        e.target.classList.contains("search-input")
+      )
+        return;
 
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
+        return;
 
       // Cmd/Ctrl + F to toggle search
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault();
         if (window.toggleSearchBox) {
           window.toggleSearchBox();
         }
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   // Listen for menu events from main process
@@ -590,21 +648,21 @@ function App() {
   // Set up global shortcut listeners without useEffect
   useEffect(() => {
     const handleTriggerStartRecording = () => {
-      info('Received global shortcut: Start Recording');
+      info("Received global shortcut: Start Recording");
       if (!isRecording) {
         startRecording();
       }
     };
 
     const handleTriggerStopRecording = () => {
-      info('Received global shortcut: Stop Recording');
+      info("Received global shortcut: Stop Recording");
       if (isRecording) {
         stopRecording();
       }
     };
 
     const handleTriggerAnalyzeConversation = () => {
-      info('Received global shortcut: Analyze Conversation');
+      info("Received global shortcut: Analyze Conversation");
       handleManualAnalysis();
     };
 
@@ -616,25 +674,30 @@ function App() {
       window.electronAPI.onTriggerStopRecording(handleTriggerStopRecording);
     }
     if (window.electronAPI?.onTriggerAnalyzeConversation) {
-      window.electronAPI.onTriggerAnalyzeConversation(handleTriggerAnalyzeConversation);
+      window.electronAPI.onTriggerAnalyzeConversation(
+        handleTriggerAnalyzeConversation,
+      );
     }
 
     // Set up LLM scrolling listeners
     const handleScrollLlmUp = () => {
-      info('Received global shortcut: Scroll LLM response up');
-      const llmResponseElement = document.querySelector('.llm-response');
+      info("Received global shortcut: Scroll LLM response up");
+      const llmResponseElement = document.querySelector(".llm-response");
       if (llmResponseElement) {
-        llmResponseElement.scrollTop = Math.max(0, llmResponseElement.scrollTop - 100);
+        llmResponseElement.scrollTop = Math.max(
+          0,
+          llmResponseElement.scrollTop - 100,
+        );
       }
     };
 
     const handleScrollLlmDown = () => {
-      info('Received global shortcut: Scroll LLM response down');
-      const llmResponseElement = document.querySelector('.llm-response');
+      info("Received global shortcut: Scroll LLM response down");
+      const llmResponseElement = document.querySelector(".llm-response");
       if (llmResponseElement) {
         llmResponseElement.scrollTop = Math.min(
           llmResponseElement.scrollHeight - llmResponseElement.clientHeight,
-          llmResponseElement.scrollTop + 100
+          llmResponseElement.scrollTop + 100,
         );
       }
     };
@@ -648,13 +711,19 @@ function App() {
 
     return () => {
       if (window.electronAPI?.removeTriggerStartRecordingListener) {
-        window.electronAPI.removeTriggerStartRecordingListener(handleTriggerStartRecording);
+        window.electronAPI.removeTriggerStartRecordingListener(
+          handleTriggerStartRecording,
+        );
       }
       if (window.electronAPI?.removeTriggerStopRecordingListener) {
-        window.electronAPI.removeTriggerStopRecordingListener(handleTriggerStopRecording);
+        window.electronAPI.removeTriggerStopRecordingListener(
+          handleTriggerStopRecording,
+        );
       }
       if (window.electronAPI?.removeTriggerAnalyzeConversationListener) {
-        window.electronAPI.removeTriggerAnalyzeConversationListener(handleTriggerAnalyzeConversation);
+        window.electronAPI.removeTriggerAnalyzeConversationListener(
+          handleTriggerAnalyzeConversation,
+        );
       }
       if (window.electronAPI?.removeScrollLlmUpListener) {
         window.electronAPI.removeScrollLlmUpListener(handleScrollLlmUp);
@@ -667,185 +736,330 @@ function App() {
 
   // Listen for interview question data from extension
   useEffect(() => {
-    info('🔧 Setting up interview question listener...');
+    info("🔧 Setting up interview question listener...");
 
     const handleInterviewQuestionReceived = (event, data) => {
-      info('📥 EVENT FIRED: Received interview question data from extension:', data);
-      info('📥 Event type:', event.type);
-      info('📥 Data structure:', Object.keys(data || {}));
+      info(
+        "📥 EVENT FIRED: Received interview question data from extension:",
+        data,
+      );
+      info("📥 Event type:", event.type);
+      info("📥 Data structure:", Object.keys(data || {}));
 
-      if (data?.data?.problem) {
+      if (data?.type === "ocr-question" && data?.data?.text) {
+        // Handle OCR extracted text
+        setCurrentQuestion({
+          title: "OCR Extracted Text",
+          description: data.data.text,
+          url: data.data.url,
+          source: "ocr",
+        });
+        info("🎯 New OCR text available for analysis from:", data.data.url);
+      } else if (data?.data?.problem) {
+        // Handle traditional DOM-parsed question
         setCurrentQuestion(data.data.problem);
-        info('🎯 New question available for analysis:', data.data.problem.title);
+        info(
+          "🎯 New question available for analysis:",
+          data.data.problem.title,
+        );
       } else {
-        info('⚠️ No problem data found in received payload');
-        info('📋 Full data structure:', JSON.stringify(data, null, 2));
+        info("⚠️ No valid question data found in received payload");
+        info("📋 Full data structure:", JSON.stringify(data, null, 2));
       }
     };
 
     // Verify the API exists before setting up listener
     if (window.electronAPI?.onInterviewQuestionReceived) {
-      info('✅ Interview question API found, setting up listener...');
-      window.electronAPI.onInterviewQuestionReceived(handleInterviewQuestionReceived);
-      info('✅ Interview question listener setup complete');
+      info("✅ Interview question API found, setting up listener...");
+      window.electronAPI.onInterviewQuestionReceived(
+        handleInterviewQuestionReceived,
+      );
+      info("✅ Interview question listener setup complete");
     } else {
-      info('❌ Interview question API not available!');
+      info("❌ Interview question API not available!");
     }
 
     // Cleanup function - this runs on unmount
     return () => {
-      info('🧹 Cleaning up interview question listener...');
+      info("🧹 Cleaning up interview question listener...");
       if (window.electronAPI?.removeInterviewQuestionReceivedListener) {
-        window.electronAPI.removeInterviewQuestionReceivedListener(handleInterviewQuestionReceived);
+        window.electronAPI.removeInterviewQuestionReceivedListener(
+          handleInterviewQuestionReceived,
+        );
       }
     };
   }, []); // Empty array is correct here - we only want to set up the listener once
 
-  return React.createElement('div', null,
-    React.createElement('div', { className: 'top-row' },
-      React.createElement('div', { className: 'control-panel' },
+  return React.createElement(
+    "div",
+    null,
+    React.createElement(
+      "div",
+      { className: "top-row" },
+      React.createElement(
+        "div",
+        { className: "control-panel" },
         // Manual Analysis Button removed - use Cmd+Shift+/ global shortcut instead
 
-        React.createElement('button', {
-          onClick: clearConversationBuffer,
-          disabled: isAnalyzing,
-          className: 'clear-btn'
-        }, '🧹 Clear Conversation'),
-        React.createElement('div', { className: 'buffer-display' }, `Buffer: ${conversationBufferRef.current.length} chars`),
+        React.createElement(
+          "button",
+          {
+            onClick: clearConversationBuffer,
+            disabled: isAnalyzing,
+            className: "clear-btn",
+          },
+          "🧹 Clear Conversation",
+        ),
+        React.createElement(
+          "div",
+          { className: "buffer-display" },
+          `Buffer: ${conversationBufferRef.current.length} chars`,
+        ),
 
         // Cache status and controls
-        cacheStats && React.createElement('div', { className: 'cache-status' },
-          React.createElement('span', null, `Cache: ${cacheStats.size}/${cacheStats.maxSize}`),
-          lastAnalysisCached && React.createElement('span', { className: 'cache-hit-indicator' }, '⚡ Cached'),
-          React.createElement('button', {
-            onClick: clearCache,
-            className: 'clear-cache-btn',
-            title: 'Clear analysis cache'
-          }, '🗑️')
-        ),
+        cacheStats &&
+          React.createElement(
+            "div",
+            { className: "cache-status" },
+            React.createElement(
+              "span",
+              null,
+              `Cache: ${cacheStats.size}/${cacheStats.maxSize}`,
+            ),
+            lastAnalysisCached &&
+              React.createElement(
+                "span",
+                { className: "cache-hit-indicator" },
+                "⚡ Cached",
+              ),
+            React.createElement(
+              "button",
+              {
+                onClick: clearCache,
+                className: "clear-cache-btn",
+                title: "Clear analysis cache",
+              },
+              "🗑️",
+            ),
+          ),
 
         // LLM Provider selector
-        currentLLMProvider && React.createElement('div', { className: 'llm-provider-selector' },
-          React.createElement('span', null, `LLM: ${currentLLMProvider.key || currentLLMProvider.name.toLowerCase().replace('provider', '')} (${currentLLMProvider.model})`),
-          llmProviders && llmProviders.available.length > 1 && React.createElement('select', {
-            value: currentLLMProvider.key || currentLLMProvider.name.toLowerCase().replace('provider', ''),
-            onChange: (e) => switchLLMProvider(e.target.value),
-            className: 'llm-provider-select'
-          },
-            llmProviders.available.map(provider =>
-              React.createElement('option', { key: provider, value: provider },
-                provider.charAt(0).toUpperCase() + provider.slice(1)
-              )
-            )
-          )
-        ),
+        currentLLMProvider &&
+          React.createElement(
+            "div",
+            { className: "llm-provider-selector" },
+            React.createElement(
+              "span",
+              null,
+              `LLM: ${currentLLMProvider.key || currentLLMProvider.name.toLowerCase().replace("provider", "")} (${currentLLMProvider.model})`,
+            ),
+            llmProviders &&
+              llmProviders.available.length > 1 &&
+              React.createElement(
+                "select",
+                {
+                  value:
+                    currentLLMProvider.key ||
+                    currentLLMProvider.name
+                      .toLowerCase()
+                      .replace("provider", ""),
+                  onChange: (e) => switchLLMProvider(e.target.value),
+                  className: "llm-provider-select",
+                },
+                llmProviders.available.map((provider) =>
+                  React.createElement(
+                    "option",
+                    { key: provider, value: provider },
+                    provider.charAt(0).toUpperCase() + provider.slice(1),
+                  ),
+                ),
+              ),
+          ),
 
         // Test button for interview data
-        React.createElement('button', {
-          onClick: async () => {
-            // Simulate receiving interview data for testing
-            const testData = {
-              type: 'interview-question-question',
-              timestamp: new Date().toISOString(),
-              extensionId: 'test-extension',
-              data: {
-                problem: {
-                  title: 'Two Sum',
-                  description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.'
-                }
-              }
-            };
-            info('🧪 Test: Setting test interview data...');
-
-            try {
-              // Use the new IPC method to set test data in LocalServer
-              const result = await window.electronAPI.setTestInterviewData(testData);
-              if (result.success) {
-                info('🎯 Test: Interview data set successfully in both frontend and backend');
-                // Also set the question in the frontend state
-                setCurrentQuestion(testData.data.problem);
-                info('🎯 Test: Question set in frontend state:', testData.data.problem.title);
-              } else {
-                logError('Error setting test data:', result.error);
-              }
-            } catch (error) {
-              logError('Error setting test interview data:', error);
-            }
-          },
-          className: 'test-btn'
-        }, '🧪 Test Question'),
-      ),
-      React.createElement('div', { className: 'llm-container' },
-        React.createElement('h2', null, 'AI Analysis'),
-        // Current question info or guidance
-        currentQuestion ? React.createElement('div', { className: 'current-question' },
-          React.createElement('div', null,
-            React.createElement('strong', null, '📋 Current Question: '),
-            React.createElement('span', null, currentQuestion.title || 'Unknown title'),
-          ),
-          React.createElement('button', {
+        React.createElement(
+          "button",
+          {
             onClick: async () => {
+              // Simulate receiving interview data for testing
+              const testData = {
+                type: "interview-question-question",
+                timestamp: new Date().toISOString(),
+                extensionId: "test-extension",
+                data: {
+                  problem: {
+                    title: "Two Sum",
+                    description:
+                      "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+                  },
+                },
+              };
+              info("🧪 Test: Setting test interview data...");
+
               try {
-                await window.electronAPI.clearInterviewData();
-                setCurrentQuestion(null);
-                info('🧹 Current question cleared by user');
+                // Use the new IPC method to set test data in LocalServer
+                const result =
+                  await window.electronAPI.setTestInterviewData(testData);
+                if (result.success) {
+                  info(
+                    "🎯 Test: Interview data set successfully in both frontend and backend",
+                  );
+                  // Also set the question in the frontend state
+                  setCurrentQuestion(testData.data.problem);
+                  info(
+                    "🎯 Test: Question set in frontend state:",
+                    testData.data.problem.title,
+                  );
+                } else {
+                  logError("Error setting test data:", result.error);
+                }
               } catch (error) {
-                logError('Error clearing interview data:', error);
+                logError("Error setting test interview data:", error);
               }
             },
-            className: 'clear-question-btn'
-          }, 'Clear')
-        ) : conversationBufferRef.current && conversationBufferRef.current.trim() && React.createElement('div', { className: 'tip-message' },
-          React.createElement('strong', null, '💡 Tip: '),
-          'Extract a question from the Chrome extension to get priority analysis. ',
-          React.createElement('span', { className: 'tip-span' },
-            'Current analysis is based on conversation only.'
-          )
+            className: "test-btn",
+          },
+          "🧪 Test Question",
         ),
+      ),
+      React.createElement(
+        "div",
+        { className: "llm-container" },
+        React.createElement("h2", null, "AI Analysis"),
+        // Current question info or guidance
+        currentQuestion
+          ? React.createElement(
+              "div",
+              { className: "current-question" },
+              React.createElement(
+                "div",
+                null,
+                React.createElement("strong", null, "📋 Current Question: "),
+                React.createElement(
+                  "span",
+                  null,
+                  currentQuestion.title || "Unknown title",
+                ),
+              ),
+              React.createElement(
+                "button",
+                {
+                  onClick: async () => {
+                    try {
+                      await window.electronAPI.clearInterviewData();
+                      setCurrentQuestion(null);
+                      info("🧹 Current question cleared by user");
+                    } catch (error) {
+                      logError("Error clearing interview data:", error);
+                    }
+                  },
+                  className: "clear-question-btn",
+                },
+                "Clear",
+              ),
+            )
+          : conversationBufferRef.current &&
+              conversationBufferRef.current.trim() &&
+              React.createElement(
+                "div",
+                { className: "tip-message" },
+                React.createElement("strong", null, "💡 Tip: "),
+                "Extract a question from the Chrome extension to get priority analysis. ",
+                React.createElement(
+                  "span",
+                  { className: "tip-span" },
+                  "Current analysis is based on conversation only.",
+                ),
+              ),
         // Analysis type indicator
-        analysisType && React.createElement('div', { className: 'analysis-type' },
-          analysisType === 'interview-metadata-priority' ?
-            '🎯 Analysis based on extracted interview question + conversation context' :
-            '💬 Analysis based on conversation only'
-        ),
+        analysisType &&
+          React.createElement(
+            "div",
+            { className: "analysis-type" },
+            analysisType === "interview-metadata-priority"
+              ? "🎯 Analysis based on extracted interview question + conversation context"
+              : "💬 Analysis based on conversation only",
+          ),
         // Compression info indicator
-        compressionInfo && React.createElement('div', { className: 'compression-info' },
-          compressionInfo.performed
-            ? `🗜️ Conversation ${compressionInfo.method}: ${compressionInfo.originalChars} → ${compressionInfo.compressedChars} chars (${compressionInfo.compressionRatio}% reduction)`
-            : `🗜️ Processing skipped: ${compressionInfo.reason}`
-        ),
-        isAnalyzing ? React.createElement('p', null, 'Analyzing conversation...') : React.createElement('div', { className: 'llm-response' }, renderHighlightedText(llmResponse || DEFAULT_ANALYSIS_MESSAGE))
-      )
+        compressionInfo &&
+          React.createElement(
+            "div",
+            { className: "compression-info" },
+            compressionInfo.performed
+              ? `🗜️ Conversation ${compressionInfo.method}: ${compressionInfo.originalChars} → ${compressionInfo.compressedChars} chars (${compressionInfo.compressionRatio}% reduction)`
+              : `🗜️ Processing skipped: ${compressionInfo.reason}`,
+          ),
+        isAnalyzing
+          ? React.createElement("p", null, "Analyzing conversation...")
+          : React.createElement(
+              "div",
+              { className: "llm-response" },
+              renderHighlightedText(llmResponse || DEFAULT_ANALYSIS_MESSAGE),
+            ),
+      ),
     ),
-    React.createElement('div', { className: 'transcript-container' },
-      React.createElement('h2', null, 'Transcription Results'),
-      React.createElement('div', { ref: transcriptScrollRef, style: { height: '500px', overflowY: 'auto' } },
-        transcripts.map((entry, idx) => React.createElement(TranscriptEntry, { key: idx, entry }))
-      )
+    React.createElement(
+      "div",
+      { className: "transcript-container" },
+      React.createElement("h2", null, "Transcription Results"),
+      React.createElement(
+        "div",
+        {
+          ref: transcriptScrollRef,
+          style: { height: "500px", overflowY: "auto" },
+        },
+        transcripts.map((entry, idx) =>
+          React.createElement(TranscriptEntry, { key: idx, entry }),
+        ),
+      ),
     ),
     React.createElement(SearchBox, {
       textToSearch: llmResponse || DEFAULT_ANALYSIS_MESSAGE,
-      onClose: () => {} // SearchBox handles its own closing
+      onClose: () => {}, // SearchBox handles its own closing
     }),
     // Metrics Modal
-    showMetricsModal && React.createElement('div', { className: 'modal-overlay', onClick: () => setShowMetricsModal(false) },
-      React.createElement('div', { className: 'modal-content', onClick: (e) => e.stopPropagation() },
-        React.createElement('div', { className: 'modal-header' },
-          React.createElement('h2', null, 'Performance Metrics'),
-          React.createElement('button', { className: 'modal-close', onClick: () => setShowMetricsModal(false) }, '×')
+    showMetricsModal &&
+      React.createElement(
+        "div",
+        {
+          className: "modal-overlay",
+          onClick: () => setShowMetricsModal(false),
+        },
+        React.createElement(
+          "div",
+          { className: "modal-content", onClick: (e) => e.stopPropagation() },
+          React.createElement(
+            "div",
+            { className: "modal-header" },
+            React.createElement("h2", null, "Performance Metrics"),
+            React.createElement(
+              "button",
+              {
+                className: "modal-close",
+                onClick: () => setShowMetricsModal(false),
+              },
+              "×",
+            ),
+          ),
+          React.createElement(
+            "div",
+            { className: "modal-body" },
+            React.createElement(MetricsDisplay, {
+              metrics: metricsSummary,
+              onClearMetrics: clearMetrics,
+            }),
+          ),
         ),
-        React.createElement('div', { className: 'modal-body' },
-          React.createElement(MetricsDisplay, { metrics: metricsSummary, onClearMetrics: clearMetrics })
-        )
-      )
-    )
+      ),
   );
 }
 
 // Wrapper component with SearchProvider
 function AppWithSearchProvider() {
-  return React.createElement(SearchProvider, null,
-    React.createElement(App, null)
+  return React.createElement(
+    SearchProvider,
+    null,
+    React.createElement(App, null),
   );
 }
 
