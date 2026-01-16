@@ -1,25 +1,36 @@
-const { app, BrowserWindow, ipcMain, Menu, globalShortcut, screen } = require('electron');
-console.log('Electron app imported:', typeof app, app ? 'defined' : 'undefined');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  globalShortcut,
+  screen,
+} = require("electron");
+console.log(
+  "Electron app imported:",
+  typeof app,
+  app ? "defined" : "undefined",
+);
 
-const { whisper } = require('whisper-node');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
-const { responseCache } = require('./ResponseCache.js');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const { whisper } = require("whisper-node");
+const path = require("path");
+const fs = require("fs");
+const os = require("os");
+const { responseCache } = require("./ResponseCache.js");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 // Import local server
-const LocalServer = require('./src/LocalServer.js');
+const LocalServer = require("./src/LocalServer.js");
 
 // Import VAD Manager
-const VADManager = require('./src/VADManager.js');
+const VADManager = require("./src/VADManager.js");
 
 // Import centralized logging
-const { log: info, error: logError } = require('./src/Logging.js');
+const { log: info, error: logError } = require("./src/Logging.js");
 
 // Import LLM processing
-const { analyzeConversation } = require('./llm/LLM.js');
-const { llmManager } = require('./llm/LLMManager.js');
+const { analyzeConversation } = require("./llm/LLM.js");
+const { llmManager } = require("./llm/LLMManager.js");
 
 // Import IPC constants
 const {
@@ -47,20 +58,20 @@ const {
   IPC_TRIGGER_ANALYZE_CONVERSATION,
   IPC_SCROLL_LLM_DOWN,
   IPC_SCROLL_LLM_UP,
-} = require('./src/IPCConstants.js');
+} = require("./src/IPCConstants.js");
 
 // Audio constants (matching src/Constants.js)
 const SAMPLE_RATE = 16000;
 
 // Enable hot reloading in development
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== "production") {
   try {
-    require('electron-reload')(__dirname, {
-      electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
-      hardResetMethod: 'exit'
+    require("electron-reload")(__dirname, {
+      electron: path.join(__dirname, "node_modules", ".bin", "electron"),
+      hardResetMethod: "exit",
     });
   } catch (err) {
-    info('electron-reload not found, running without hot reload');
+    info("electron-reload not found, running without hot reload");
   }
 }
 
@@ -70,7 +81,7 @@ function createIndicatorWindow() {
     return; // Already exists
   }
 
-  const { screen } = require('electron');
+  const { screen } = require("electron");
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width } = primaryDisplay.workAreaSize;
 
@@ -91,22 +102,24 @@ function createIndicatorWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       devTools: true, // Enable DevTools
-      preload: path.join(__dirname, 'indicator-preload.js')
-    }
+      preload: path.join(__dirname, "indicator-preload.js"),
+    },
   });
 
-  indicatorWindow.loadFile('indicator.html');
+  indicatorWindow.loadFile("indicator.html");
 
+  // Prevent window content from being captured by screen sharing tools
+  indicatorWindow.setContentProtection(true);
   // Hide from taskbar and alt-tab
   indicatorWindow.setSkipTaskbar(true);
-  indicatorWindow.setAlwaysOnTop(true, 'floating');
+  indicatorWindow.setAlwaysOnTop(true, "floating");
 
-  indicatorWindow.on('ready-to-show', () => {
+  indicatorWindow.on("ready-to-show", () => {
     // Show by default
     indicatorWindow.show();
 
     // Auto-open DevTools in development mode
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       setTimeout(() => {
         indicatorWindow.webContents.openDevTools();
       }, 1000); // Give it time to load
@@ -114,15 +127,15 @@ function createIndicatorWindow() {
 
     // Add keyboard shortcut to open DevTools on indicator window
     // Use Cmd+Option+U (Mac) or Ctrl+Shift+U (Windows/Linux)
-    indicatorWindow.webContents.on('before-input-event', (event, input) => {
-      if (input.key === 'u' && (input.control || input.meta) && input.alt) {
+    indicatorWindow.webContents.on("before-input-event", (event, input) => {
+      if (input.key === "u" && (input.control || input.meta) && input.alt) {
         indicatorWindow.webContents.openDevTools();
         event.preventDefault();
       }
     });
   });
 
-  indicatorWindow.on('closed', () => {
+  indicatorWindow.on("closed", () => {
     indicatorWindow = null;
   });
 }
@@ -139,10 +152,10 @@ app.whenReady().then(() => {
     width: 1000,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      sandbox: false
-    }
+      sandbox: false,
+    },
   });
 
   // Prevent window content from being captured by screen sharing tools
@@ -150,26 +163,29 @@ app.whenReady().then(() => {
   mainWindow.setSkipTaskbar(true);
   mainWindow.setMenuBarVisibility(false);
 
-  mainWindow.loadFile('index.html');
+  mainWindow.loadFile("index.html");
 
   // Initialize and start the local server
   try {
     localServer = new LocalServer(ipcMain);
-    localServer.start(mainWindow).then(() => {
-      info('Local server started successfully');
-    }).catch((error) => {
-      logError('Failed to start local server:', error);
-    });
+    localServer
+      .start(mainWindow)
+      .then(() => {
+        info("Local server started successfully");
+      })
+      .catch((error) => {
+        logError("Failed to start local server:", error);
+      });
   } catch (error) {
-    logError('Error initializing local server:', error);
+    logError("Error initializing local server:", error);
   }
 
   // Initialize VAD Manager
   try {
     vadManager = new VADManager();
-    info('VAD Manager initialized');
+    info("VAD Manager initialized");
   } catch (error) {
-    logError('Error initializing VAD Manager:', error);
+    logError("Error initializing VAD Manager:", error);
   }
 
   // Create indicator window
@@ -178,61 +194,81 @@ app.whenReady().then(() => {
   // Create application menu
   const template = [
     // App menu (macOS only)
-    ...(process.platform === 'darwin' ? [{
-      label: app.getName(),
-      submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        { role: 'services' },
-        { type: 'separator' },
-        { label: 'Hide', accelerator: 'Cmd+H', role: 'hide' },
-        { label: 'Hide Others', accelerator: 'Cmd+Shift+H', role: 'hideOthers' },
-        { label: 'Show All', role: 'unhide' },
-        { type: 'separator' },
-        { label: 'Quit', accelerator: 'Cmd+Q', role: 'quit' }
-      ]
-    }] : []),
+    ...(process.platform === "darwin"
+      ? [
+          {
+            label: app.getName(),
+            submenu: [
+              { role: "about" },
+              { type: "separator" },
+              { role: "services" },
+              { type: "separator" },
+              { label: "Hide", accelerator: "Cmd+H", role: "hide" },
+              {
+                label: "Hide Others",
+                accelerator: "Cmd+Shift+H",
+                role: "hideOthers",
+              },
+              { label: "Show All", role: "unhide" },
+              { type: "separator" },
+              { label: "Quit", accelerator: "Cmd+Q", role: "quit" },
+            ],
+          },
+        ]
+      : []),
     {
-      label: 'Edit',
+      label: "Edit",
       submenu: [
-        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', role: 'undo' },
-        { label: 'Redo', accelerator: 'Shift+CmdOrCtrl+Z', role: 'redo' },
-        { type: 'separator' },
-        { label: 'Cut', accelerator: 'CmdOrCtrl+X', role: 'cut' },
-        { label: 'Copy', accelerator: 'CmdOrCtrl+C', role: 'copy' },
-        { label: 'Paste', accelerator: 'CmdOrCtrl+V', role: 'paste' },
-        { label: 'Select All', accelerator: 'CmdOrCtrl+A', role: 'selectall' }
-      ]
+        { label: "Undo", accelerator: "CmdOrCtrl+Z", role: "undo" },
+        { label: "Redo", accelerator: "Shift+CmdOrCtrl+Z", role: "redo" },
+        { type: "separator" },
+        { label: "Cut", accelerator: "CmdOrCtrl+X", role: "cut" },
+        { label: "Copy", accelerator: "CmdOrCtrl+C", role: "copy" },
+        { label: "Paste", accelerator: "CmdOrCtrl+V", role: "paste" },
+        { label: "Select All", accelerator: "CmdOrCtrl+A", role: "selectall" },
+      ],
     },
     {
-      label: 'View',
+      label: "View",
       submenu: [
         {
-          label: 'Performance Metrics',
-          accelerator: 'CmdOrCtrl+Shift+P',
+          label: "Performance Metrics",
+          accelerator: "CmdOrCtrl+Shift+P",
           click: () => {
             mainWindow.webContents.send(IPC_SHOW_METRICS);
-          }
+          },
         },
-        { type: 'separator' },
-        { label: 'Reload', accelerator: 'CmdOrCtrl+R', role: 'reload' },
-        { label: 'Force Reload', accelerator: 'CmdOrCtrl+Shift+R', role: 'forceReload' },
-        { label: 'Toggle Developer Tools', accelerator: 'CmdOrCtrl+Shift+I', role: 'toggleDevTools' },
-        { type: 'separator' },
-        { label: 'Actual Size', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
-        { label: 'Zoom In', accelerator: 'CmdOrCtrl+=', role: 'zoomIn' },
-        { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
-        { type: 'separator' },
-        { label: 'Toggle Full Screen', accelerator: process.platform === 'darwin' ? 'Cmd+Ctrl+F' : 'F11', role: 'togglefullscreen' }
-      ]
+        { type: "separator" },
+        { label: "Reload", accelerator: "CmdOrCtrl+R", role: "reload" },
+        {
+          label: "Force Reload",
+          accelerator: "CmdOrCtrl+Shift+R",
+          role: "forceReload",
+        },
+        {
+          label: "Toggle Developer Tools",
+          accelerator: "CmdOrCtrl+Shift+I",
+          role: "toggleDevTools",
+        },
+        { type: "separator" },
+        { label: "Actual Size", accelerator: "CmdOrCtrl+0", role: "resetZoom" },
+        { label: "Zoom In", accelerator: "CmdOrCtrl+=", role: "zoomIn" },
+        { label: "Zoom Out", accelerator: "CmdOrCtrl+-", role: "zoomOut" },
+        { type: "separator" },
+        {
+          label: "Toggle Full Screen",
+          accelerator: process.platform === "darwin" ? "Cmd+Ctrl+F" : "F11",
+          role: "togglefullscreen",
+        },
+      ],
     },
     {
-      label: 'Window',
+      label: "Window",
       submenu: [
-        { label: 'Minimize', accelerator: 'CmdOrCtrl+M', role: 'minimize' },
-        { label: 'Close', accelerator: 'CmdOrCtrl+W', role: 'close' }
-      ]
-    }
+        { label: "Minimize", accelerator: "CmdOrCtrl+M", role: "minimize" },
+        { label: "Close", accelerator: "CmdOrCtrl+W", role: "close" },
+      ],
+    },
   ];
 
   const menu = Menu.buildFromTemplate(template);
@@ -262,20 +298,26 @@ app.whenReady().then(() => {
       let newY = currentY + deltaY;
 
       // Keep window within screen bounds
-      newX = Math.max(screenBounds.x, Math.min(newX, screenBounds.x + screenBounds.width - width));
-      newY = Math.max(screenBounds.y, Math.min(newY, screenBounds.y + screenBounds.height - height));
+      newX = Math.max(
+        screenBounds.x,
+        Math.min(newX, screenBounds.x + screenBounds.width - width),
+      );
+      newY = Math.max(
+        screenBounds.y,
+        Math.min(newY, screenBounds.y + screenBounds.height - height),
+      );
 
       mainWindow.setPosition(newX, newY);
     };
 
     // Register movement shortcuts
-    globalShortcut.register('CmdOrCtrl+Up', () => moveWindow(0, -MOVE_STEP));
-    globalShortcut.register('CmdOrCtrl+Down', () => moveWindow(0, MOVE_STEP));
-    globalShortcut.register('CmdOrCtrl+Left', () => moveWindow(-MOVE_STEP, 0));
-    globalShortcut.register('CmdOrCtrl+Right', () => moveWindow(MOVE_STEP, 0));
+    globalShortcut.register("CmdOrCtrl+Up", () => moveWindow(0, -MOVE_STEP));
+    globalShortcut.register("CmdOrCtrl+Down", () => moveWindow(0, MOVE_STEP));
+    globalShortcut.register("CmdOrCtrl+Left", () => moveWindow(-MOVE_STEP, 0));
+    globalShortcut.register("CmdOrCtrl+Right", () => moveWindow(MOVE_STEP, 0));
 
     // Register random positioning shortcut
-    globalShortcut.register('CmdOrCtrl+M', () => {
+    globalShortcut.register("CmdOrCtrl+M", () => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
 
       const screenBounds = screen.getPrimaryDisplay().workArea;
@@ -286,11 +328,15 @@ app.whenReady().then(() => {
       const availableHeight = screenBounds.height - height;
 
       // Generate random position within bounds for main window
-      const randomX = screenBounds.x + Math.floor(Math.random() * availableWidth);
-      const randomY = screenBounds.y + Math.floor(Math.random() * availableHeight);
+      const randomX =
+        screenBounds.x + Math.floor(Math.random() * availableWidth);
+      const randomY =
+        screenBounds.y + Math.floor(Math.random() * availableHeight);
 
       mainWindow.setPosition(randomX, randomY);
-      info(`Main window randomized via shortcut to position: (${randomX}, ${randomY})`);
+      info(
+        `Main window randomized via shortcut to position: (${randomX}, ${randomY})`,
+      );
 
       // Also randomize indicator window position to one of three top positions
       if (indicatorWindow && !indicatorWindow.isDestroyed()) {
@@ -298,66 +344,87 @@ app.whenReady().then(() => {
 
         // Choose one of three positions: left, center, right at the top
         const positions = [
-          { x: screenBounds.x + 10, y: screenBounds.y + 40, name: 'left-top' }, // Left top
-          { x: screenBounds.x + Math.floor((screenBounds.width - indicatorWidth) / 2), y: screenBounds.y + 40, name: 'center-top' }, // Center top
-          { x: screenBounds.x + screenBounds.width - indicatorWidth - 10, y: screenBounds.y + 40, name: 'right-top' } // Right top
+          { x: screenBounds.x + 10, y: screenBounds.y + 40, name: "left-top" }, // Left top
+          {
+            x:
+              screenBounds.x +
+              Math.floor((screenBounds.width - indicatorWidth) / 2),
+            y: screenBounds.y + 40,
+            name: "center-top",
+          }, // Center top
+          {
+            x: screenBounds.x + screenBounds.width - indicatorWidth - 10,
+            y: screenBounds.y + 40,
+            name: "right-top",
+          }, // Right top
         ];
 
-        const randomPosition = positions[Math.floor(Math.random() * positions.length)];
+        const randomPosition =
+          positions[Math.floor(Math.random() * positions.length)];
         indicatorWindow.setPosition(randomPosition.x, randomPosition.y);
-        info(`Indicator window moved to ${randomPosition.name} position: (${randomPosition.x}, ${randomPosition.y})`);
+        info(
+          `Indicator window moved to ${randomPosition.name} position: (${randomPosition.x}, ${randomPosition.y})`,
+        );
       }
     });
 
     // Register recording shortcuts
-    globalShortcut.register('CmdOrCtrl+Shift+S', () => {
+    globalShortcut.register("CmdOrCtrl+Shift+S", () => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
-      info('Global shortcut: Start Recording triggered');
+      info("Global shortcut: Start Recording triggered");
       mainWindow.webContents.send(IPC_TRIGGER_START_RECORDING);
     });
 
-    globalShortcut.register('CmdOrCtrl+Shift+X', () => {
+    globalShortcut.register("CmdOrCtrl+Shift+X", () => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
-      info('Global shortcut: Stop Recording triggered');
+      info("Global shortcut: Stop Recording triggered");
       mainWindow.webContents.send(IPC_TRIGGER_STOP_RECORDING);
     });
 
-    info('Window movement shortcuts registered: Cmd/Ctrl + Arrow Keys, Cmd/Ctrl + M (randomize)');
-    info('Recording shortcuts registered: Cmd/Ctrl + Shift + S (start), Cmd/Ctrl + Shift + X (stop)');
+    info(
+      "Window movement shortcuts registered: Cmd/Ctrl + Arrow Keys, Cmd/Ctrl + M (randomize)",
+    );
+    info(
+      "Recording shortcuts registered: Cmd/Ctrl + Shift + S (start), Cmd/Ctrl + Shift + X (stop)",
+    );
 
     // Register global shortcut for analyze conversation
-    globalShortcut.register('CmdOrCtrl+Shift+/', () => {
+    globalShortcut.register("CmdOrCtrl+Shift+/", () => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
-      info('Global shortcut: Analyze Conversation triggered');
+      info("Global shortcut: Analyze Conversation triggered");
       mainWindow.webContents.send(IPC_TRIGGER_ANALYZE_CONVERSATION);
     });
-    info('Analyze conversation shortcut registered: Cmd/Ctrl + Shift + /');
+    info("Analyze conversation shortcut registered: Cmd/Ctrl + Shift + /");
 
     // Register global shortcut to open DevTools on indicator window
-    globalShortcut.register('CmdOrCtrl+Shift+U', () => {
+    globalShortcut.register("CmdOrCtrl+Shift+U", () => {
       if (indicatorWindow && !indicatorWindow.isDestroyed()) {
-        info('Opening DevTools on indicator window');
+        info("Opening DevTools on indicator window");
         indicatorWindow.webContents.openDevTools();
       } else {
-        info('Indicator window not available for DevTools');
+        info("Indicator window not available for DevTools");
       }
     });
-    info('DevTools shortcut registered: Cmd/Ctrl + Shift + U (for indicator window)');
+    info(
+      "DevTools shortcut registered: Cmd/Ctrl + Shift + U (for indicator window)",
+    );
 
     // Register LLM response scrolling shortcuts
-    globalShortcut.register('CmdOrCtrl+Shift+Up', () => {
+    globalShortcut.register("CmdOrCtrl+Shift+Up", () => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
-      info('Global shortcut: Scroll LLM response up');
+      info("Global shortcut: Scroll LLM response up");
       mainWindow.webContents.send(IPC_SCROLL_LLM_UP);
     });
 
-    globalShortcut.register('CmdOrCtrl+Shift+Down', () => {
+    globalShortcut.register("CmdOrCtrl+Shift+Down", () => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
-      info('Global shortcut: Scroll LLM response down');
+      info("Global shortcut: Scroll LLM response down");
       mainWindow.webContents.send(IPC_SCROLL_LLM_DOWN);
     });
 
-    info('LLM response scrolling shortcuts registered: Cmd/Ctrl + Shift + Up/Down');
+    info(
+      "LLM response scrolling shortcuts registered: Cmd/Ctrl + Shift + Up/Down",
+    );
   };
 
   // Register the shortcuts
@@ -365,7 +432,7 @@ app.whenReady().then(() => {
 });
 
 ipcMain.handle(IPC_TRANSCRIBE_AUDIO, async (_, audioBuffer) => {
-  info('ipc-main: transcribe-audio');
+  info("ipc-main: transcribe-audio");
   const tempDir = os.tmpdir();
   const tempFilePath = path.join(tempDir, `whisper_temp_${Date.now()}.wav`);
 
@@ -375,21 +442,21 @@ ipcMain.handle(IPC_TRANSCRIBE_AUDIO, async (_, audioBuffer) => {
 
     // Verify the file is in correct format
     const stats = fs.statSync(tempFilePath);
-    if (stats.size === 0) throw new Error('Empty audio file');
+    if (stats.size === 0) throw new Error("Empty audio file");
 
     // Transcribe with Whisper
     const result = await whisper(tempFilePath, {
-        modelName: "small.en",
-        modelDownload: true,
-        whisperOptions: {
-          language: 'auto',         // default (use 'auto' for auto detect)
-          word_timestamps: true     // timestamp for every word
-        }
+      modelName: "small.en",
+      modelDownload: true,
+      whisperOptions: {
+        language: "auto", // default (use 'auto' for auto detect)
+        word_timestamps: true, // timestamp for every word
+      },
     });
 
     return { success: true, result };
   } catch (error) {
-    logError('Transcription error:', error);
+    logError("Transcription error:", error);
     return { success: false, error: error.message };
   } finally {
     // Clean up temp file
@@ -399,8 +466,8 @@ ipcMain.handle(IPC_TRANSCRIBE_AUDIO, async (_, audioBuffer) => {
   }
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
     // Stop the local server before quitting
     if (localServer) {
       localServer.stop();
@@ -410,7 +477,7 @@ app.on('window-all-closed', () => {
 });
 
 // Stop server when app is quitting
-app.on('will-quit', () => {
+app.on("will-quit", () => {
   // Unregister global shortcuts
   globalShortcut.unregisterAll();
 
@@ -420,70 +487,79 @@ app.on('will-quit', () => {
 });
 
 // Handle scroll commands from indicator window
-ipcMain.on('scroll-llm-up', (_event) => {
+ipcMain.on("scroll-llm-up", (_event) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    info('Forwarding scroll LLM up command from indicator window');
+    info("Forwarding scroll LLM up command from indicator window");
     mainWindow.webContents.send(IPC_SCROLL_LLM_UP);
   }
 });
 
-ipcMain.on('scroll-llm-down', (_event) => {
+ipcMain.on("scroll-llm-down", (_event) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    info('Forwarding scroll LLM down command from indicator window');
+    info("Forwarding scroll LLM down command from indicator window");
     mainWindow.webContents.send(IPC_SCROLL_LLM_DOWN);
   }
 });
 
-ipcMain.handle(IPC_ANALYZE_CONVERSATION, async (_, conversationBuffer, forceNewAnalysis = false) => {
+ipcMain.handle(
+  IPC_ANALYZE_CONVERSATION,
+  async (_, conversationBuffer, forceNewAnalysis = false) => {
     // Get current interview data from LocalServer
-    const interviewData = localServer ? localServer.getCurrentInterviewData() : null;
+    const interviewData = localServer
+      ? localServer.getCurrentInterviewData()
+      : null;
 
     // Delegate to LLM processing module
-    return await analyzeConversation(conversationBuffer, interviewData, forceNewAnalysis);
-});
+    return await analyzeConversation(
+      conversationBuffer,
+      interviewData,
+      forceNewAnalysis,
+    );
+  },
+);
 
 // IPC handlers for local server communication
 ipcMain.handle(IPC_GET_SERVER_STATUS, async () => {
-    if (localServer) {
-        return {
-            success: true,
-            status: localServer.getStatus()
-        };
-    } else {
-        return {
-            success: false,
-            error: 'Server not initialized'
-        };
-    }
+  if (localServer) {
+    return {
+      success: true,
+      status: localServer.getStatus(),
+    };
+  } else {
+    return {
+      success: false,
+      error: "Server not initialized",
+    };
+  }
 });
 
 ipcMain.handle(IPC_RESTART_SERVER, async () => {
-    try {
-        if (localServer) {
-            localServer.stop();
-            await localServer.start(mainWindow);
-            return { success: true, message: 'Server restarted successfully' };
-        } else {
-            localServer = new LocalServer(ipcMain);
-            await localServer.start(mainWindow);
-            return { success: true, message: 'Server started successfully' };
-        }
-    } catch (error) {
-        logError('Error restarting server:', error);
-        return { success: false, error: error.message };
+  try {
+    if (localServer) {
+      localServer.stop();
+      await localServer.start(mainWindow);
+      return { success: true, message: "Server restarted successfully" };
+    } else {
+      localServer = new LocalServer(ipcMain);
+      await localServer.start(mainWindow);
+      return { success: true, message: "Server started successfully" };
     }
+  } catch (error) {
+    logError("Error restarting server:", error);
+    return { success: false, error: error.message };
+  }
 });
 
 ipcMain.handle(IPC_CLEAR_INTERVIEW_DATA, async () => {
   try {
     if (localServer) {
       localServer.clearCurrentInterviewData();
-      return { success: true, message: 'Interview data cleared successfully' };
+      return { success: true, message: "Interview data cleared successfully" };
     } else {
-      return { success: false, error: 'Local server not available' };
+      return { success: false, error: "Local server not available" };
     }
   } catch (error) {
-    logError('Error clearing interview data:', error);
+    logError("Error clearing interview data:", error);
     return { success: false, error: error.message };
   }
 });
@@ -493,30 +569,29 @@ ipcMain.handle(IPC_SET_TEST_INTERVIEW_DATA, async (_, testData) => {
     if (localServer) {
       // Simulate the LocalServer receiving data like it would from the Chrome extension
       localServer.handleInterviewData(testData);
-      return { success: true, message: 'Test interview data set successfully' };
+      return { success: true, message: "Test interview data set successfully" };
     } else {
-      return { success: false, error: 'Local server not available' };
+      return { success: false, error: "Local server not available" };
     }
   } catch (error) {
-    logError('Error setting test interview data:', error);
+    logError("Error setting test interview data:", error);
     return { success: false, error: error.message };
   }
 });
 
-
 // Handle indicator updates - use ipcMain.on for event-based communication
 ipcMain.on(IPC_UPDATE_INDICATOR, (event, data) => {
   try {
-    console.log('🔴 [MAIN] Received indicator update:', data); // Debug log
+    console.log("🔴 [MAIN] Received indicator update:", data); // Debug log
     if (indicatorWindow && !indicatorWindow.isDestroyed()) {
-      console.log('📤 [MAIN] Forwarding to indicator window'); // Debug log
+      console.log("📤 [MAIN] Forwarding to indicator window"); // Debug log
       // Send the IPC message to the indicator window
       indicatorWindow.webContents.send(IPC_UPDATE_INDICATOR, data);
     } else {
-      console.log('❌ [MAIN] Indicator window not available'); // Debug log
+      console.log("❌ [MAIN] Indicator window not available"); // Debug log
     }
   } catch (error) {
-    console.error('❌ [MAIN] Error updating indicator:', error); // Debug log
+    console.error("❌ [MAIN] Error updating indicator:", error); // Debug log
   }
 });
 
@@ -524,7 +599,7 @@ ipcMain.on(IPC_UPDATE_INDICATOR, (event, data) => {
 ipcMain.handle(IPC_PROCESS_VAD, async (_, audioBuffer) => {
   try {
     if (!vadManager) {
-      return { success: false, error: 'VAD Manager not initialized' };
+      return { success: false, error: "VAD Manager not initialized" };
     }
 
     // Convert buffer back to Float32Array
@@ -533,7 +608,7 @@ ipcMain.handle(IPC_PROCESS_VAD, async (_, audioBuffer) => {
 
     return { success: true, result };
   } catch (error) {
-    logError('VAD processing error:', error);
+    logError("VAD processing error:", error);
     return { success: false, error: error.message };
   }
 });
@@ -546,7 +621,7 @@ ipcMain.handle(IPC_SHOULD_SKIP_TRANSCRIPTION, async () => {
 
     return vadManager.shouldSkipTranscription();
   } catch (error) {
-    logError('VAD skip check error:', error);
+    logError("VAD skip check error:", error);
     return false; // Default to not skipping on error
   }
 });
@@ -558,7 +633,7 @@ ipcMain.handle(IPC_RESET_VAD, async () => {
     }
     return { success: true };
   } catch (error) {
-    logError('VAD reset error:', error);
+    logError("VAD reset error:", error);
     return { success: false, error: error.message };
   }
 });
@@ -570,7 +645,7 @@ ipcMain.handle(IPC_GET_VAD_STATS, async () => {
     }
     return vadManager.getStats();
   } catch (error) {
-    logError('VAD stats error:', error);
+    logError("VAD stats error:", error);
     return null;
   }
 });
@@ -580,7 +655,7 @@ ipcMain.handle(IPC_GET_CACHE_STATS, async () => {
   try {
     return responseCache.getStats();
   } catch (error) {
-    logError('Cache stats error:', error);
+    logError("Cache stats error:", error);
     return { error: error.message };
   }
 });
@@ -592,7 +667,7 @@ ipcMain.handle(IPC_CLEAR_CACHE, async () => {
     info(`Cache cleared: removed ${statsBefore.size} entries`);
     return { success: true, removedCount: statsBefore.size };
   } catch (error) {
-    logError('Cache clear error:', error);
+    logError("Cache clear error:", error);
     return { success: false, error: error.message };
   }
 });
@@ -602,10 +677,10 @@ ipcMain.handle(IPC_GET_LLM_PROVIDERS, async () => {
   try {
     return {
       available: llmManager.getAvailableProviders(),
-      current: llmManager.getCurrentProviderInfo()
+      current: llmManager.getCurrentProviderInfo(),
     };
   } catch (error) {
-    logError('Get LLM providers error:', error);
+    logError("Get LLM providers error:", error);
     return { error: error.message };
   }
 });
@@ -615,10 +690,10 @@ ipcMain.handle(IPC_SWITCH_LLM_PROVIDER, async (_, providerName) => {
     const success = llmManager.switchProvider(providerName);
     return {
       success,
-      current: success ? llmManager.getCurrentProviderInfo() : null
+      current: success ? llmManager.getCurrentProviderInfo() : null,
     };
   } catch (error) {
-    logError('Switch LLM provider error:', error);
+    logError("Switch LLM provider error:", error);
     return { success: false, error: error.message };
   }
 });
@@ -627,7 +702,7 @@ ipcMain.handle(IPC_GET_CURRENT_LLM_PROVIDER, async () => {
   try {
     return llmManager.getCurrentProviderInfo();
   } catch (error) {
-    logError('Get current LLM provider error:', error);
+    logError("Get current LLM provider error:", error);
     return { error: error.message };
   }
 });
@@ -636,7 +711,7 @@ ipcMain.handle(IPC_GET_CURRENT_LLM_PROVIDER, async () => {
 ipcMain.handle(IPC_MOVE_WINDOW, async (_, direction) => {
   try {
     if (!mainWindow || mainWindow.isDestroyed()) {
-      return { success: false, error: 'Window not available' };
+      return { success: false, error: "Window not available" };
     }
 
     const MOVE_STEP = 50;
@@ -644,23 +719,24 @@ ipcMain.handle(IPC_MOVE_WINDOW, async (_, direction) => {
     const [currentX, currentY] = mainWindow.getPosition();
     const [width, height] = mainWindow.getSize();
 
-    let deltaX = 0, deltaY = 0;
+    let deltaX = 0,
+      deltaY = 0;
 
     switch (direction) {
-      case 'up':
+      case "up":
         deltaY = -MOVE_STEP;
         break;
-      case 'down':
+      case "down":
         deltaY = MOVE_STEP;
         break;
-      case 'left':
+      case "left":
         deltaX = -MOVE_STEP;
         break;
-      case 'right':
+      case "right":
         deltaX = MOVE_STEP;
         break;
       default:
-        return { success: false, error: 'Invalid direction' };
+        return { success: false, error: "Invalid direction" };
     }
 
     // Calculate new position with bounds checking
@@ -668,13 +744,19 @@ ipcMain.handle(IPC_MOVE_WINDOW, async (_, direction) => {
     let newY = currentY + deltaY;
 
     // Keep window within screen bounds
-    newX = Math.max(screenBounds.x, Math.min(newX, screenBounds.x + screenBounds.width - width));
-    newY = Math.max(screenBounds.y, Math.min(newY, screenBounds.y + screenBounds.height - height));
+    newX = Math.max(
+      screenBounds.x,
+      Math.min(newX, screenBounds.x + screenBounds.width - width),
+    );
+    newY = Math.max(
+      screenBounds.y,
+      Math.min(newY, screenBounds.y + screenBounds.height - height),
+    );
 
     mainWindow.setPosition(newX, newY);
     return { success: true, position: { x: newX, y: newY } };
   } catch (error) {
-    logError('Move window error:', error);
+    logError("Move window error:", error);
     return { success: false, error: error.message };
   }
 });
@@ -682,7 +764,7 @@ ipcMain.handle(IPC_MOVE_WINDOW, async (_, direction) => {
 ipcMain.handle(IPC_RANDOMIZE_WINDOW_POSITION, async () => {
   try {
     if (!mainWindow || mainWindow.isDestroyed()) {
-      return { success: false, error: 'Window not available' };
+      return { success: false, error: "Window not available" };
     }
 
     const screenBounds = screen.getPrimaryDisplay().workArea;
@@ -694,13 +776,14 @@ ipcMain.handle(IPC_RANDOMIZE_WINDOW_POSITION, async () => {
 
     // Generate random position within bounds
     const randomX = screenBounds.x + Math.floor(Math.random() * availableWidth);
-    const randomY = screenBounds.y + Math.floor(Math.random() * availableHeight);
+    const randomY =
+      screenBounds.y + Math.floor(Math.random() * availableHeight);
 
     mainWindow.setPosition(randomX, randomY);
     info(`Window randomized to position: (${randomX}, ${randomY})`);
     return { success: true, position: { x: randomX, y: randomY } };
   } catch (error) {
-    logError('Randomize window position error:', error);
+    logError("Randomize window position error:", error);
     return { success: false, error: error.message };
   }
 });
